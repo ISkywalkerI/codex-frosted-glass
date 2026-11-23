@@ -4,9 +4,10 @@
    纯透明度版：只调透明，不做模糊、不放背景细节。
    ============================================================ */
 
-const CF_VER = "1.9.0";
+const CF_VER = "1.9.1";
 const KEY = "cf-glass-v1";
-const DEFAULTS = { t: 55, on: true, collapsed: false, x: null, y: null };
+/* hidden: 默认隐藏调节面板，按 Ctrl+Shift+G 调出（首次运行即隐藏） */
+const DEFAULTS = { t: 55, on: true, collapsed: false, hidden: true, x: null, y: null };
 
 /* 头像浮层这类小窗口不套皮肤：它会把浮层变成一块渐变底 + 角落多出控制面板 */
 if (/avatar-overlay/i.test(location.search + location.hash)) {
@@ -19,6 +20,11 @@ try {
 } catch (e) {}
 // 兼容旧版本存下的 blur 字段：直接丢弃
 delete s.blur;
+
+/* 同一个页面被重复注入时共用一份状态：
+   否则旧实例会用它的过期快照把 localStorage 覆盖回去（表现为透明度自己跳回旧值）。 */
+if (window.__cfState) s = window.__cfState;
+else window.__cfState = s;
 
 const save = () => {
   try {
@@ -115,7 +121,7 @@ if (!panel) {
         <input class="cf-t" type="range" min="0" max="100" step="1">
         <b class="cf-tv"></b>
       </label>
-      <div class="cf-hint">拖动标题移动 · Ctrl+Shift+G 隐藏面板</div>
+      <div class="cf-hint">拖动标题移动 · Ctrl+Shift+G 隐藏/显示</div>
     </div>`;
   document.body.appendChild(panel);
 } else {
@@ -135,6 +141,7 @@ const apply = () => {
   html.classList.toggle("cf-off", !s.on);
   panel.classList.toggle("cf-off", !s.on);
   panel.classList.toggle("cf-collapsed", !!s.collapsed);
+  panel.classList.toggle("cf-hidden", !!s.hidden);
   tInput.value = s.t;
   tVal.textContent = s.t + "%";
   if (s.x !== null && s.y !== null) {
@@ -207,7 +214,9 @@ if (!window.__cfKeyBound) {
     (e) => {
       if (e.ctrlKey && e.shiftKey && (e.key === "G" || e.key === "g")) {
         e.preventDefault();
-        panel.classList.toggle("cf-hidden");
+        s.hidden = !s.hidden;
+        apply();
+        save();
       }
     },
     true
@@ -236,6 +245,15 @@ window.addEventListener("resize", scheduleTag);
 /* ---------- 7. 启动 ---------- */
 tag();
 apply();
+
+/* 面板默认是隐藏的，注入后短暂提示一次怎么调出来 */
+if (s.hidden && !document.getElementById("cf-toast")) {
+  const tip = document.createElement("div");
+  tip.id = "cf-toast";
+  tip.textContent = "调节面板已隐藏 · Ctrl+Shift+G 调出";
+  document.body.appendChild(tip);
+  setTimeout(() => tip.remove(), 6500);
+}
 
 document.documentElement.dataset.cfSkin = CF_VER;
 return {

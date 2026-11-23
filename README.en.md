@@ -111,7 +111,7 @@ node inject.js             # daemon mode: re-inject on reload/restart (stays res
 
 ## Usage
 
-A control panel appears in the bottom-right corner:
+The panel is **hidden by default** so it never covers the UI. Press `Ctrl + Shift + G` to show it — after each injection a 6-second hint appears in the bottom-right corner telling you the shortcut:
 
 | Action | Effect |
 |---|---|
@@ -119,7 +119,7 @@ A control panel appears in the bottom-right corner:
 | Drag the title bar | Move the panel (position is remembered) |
 | `◐` | Toggle the skin (turning it off restores the stock look instantly) |
 | `–` | Collapse / expand the panel |
-| `Ctrl + Shift + G` | Hide / show the panel (handy for screenshots) |
+| `Ctrl + Shift + G` | Show / hide the panel (hidden by default) |
 
 Settings live in `localStorage["cf-glass-v1"]`; default is `transparency 55%`.
 
