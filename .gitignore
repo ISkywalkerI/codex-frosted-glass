@@ -10,3 +10,4 @@ capture*.png
 _gen/
 _dl/
 node_modules/
+dist/

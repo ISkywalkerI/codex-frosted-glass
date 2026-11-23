@@ -6,6 +6,8 @@
 
 > 这是一个**第三方个人项目**，与 OpenAI 无关。仅改变本机客户端的视觉外观，不涉及账号、网络或任何数据。
 
+[简体中文] · **English** → [README.en.md](README.en.md)
+
 ![主界面](docs/preview-main.png)
 
 <p align="center">
@@ -61,6 +63,10 @@ Chromium 只在启动参数里带 `--remote-debugging-port` 时才开放调试�
 | 端口 | 本地 `9335`（可用环境变量 `CDP_PORT` 改） |
 
 ## 快速开始
+
+**方式 A — 下载 Release**（不需要 git）：从 [Releases](https://github.com/ISkywalkerI/codex-frosted-glass/releases/latest) 下载 `codex-frosted-glass-v1.7.0.zip`，解压到**固定目录**，双击 `Codex-skinned.cmd`。
+
+**方式 B — clone**：
 
 ```bat
 git clone https://github.com/ISkywalkerI/codex-frosted-glass.git
