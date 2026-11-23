@@ -19,7 +19,7 @@ No binary patching, no broken signatures, fully reversible — all styling is in
 
 ## Features
 
-- **Double-click entry** — `Codex-skinned.exe` ships with the icon embedded and no console window, so it can be pinned to Start or the taskbar
+- **Double-click entry, two flavours** — `Codex-skinned.exe` ships with the icon embedded and no console window, so it can be pinned to Start or the taskbar; switch to `Codex-skinned.cmd` when you want the full output
 - **Adjustable transparency** — drag a slider, the whole UI updates instantly, no reload
 - **Pick your own gradient** — an in-panel HSV wheel drives main light / secondary light / base colour; the other three glows and the glass tint are derived. Five presets, one click each
 - **Layered depth** — shell, composer, and sidebar use three different glass thicknesses
@@ -76,21 +76,33 @@ Verdict: **transparency only.** One less slider, one less filter, same look, zer
 
 ## Quick start
 
-**Option A — download the release** (no git needed): grab `codex-frosted-glass-v1.11.0.zip` from
-[Releases](https://github.com/ISkywalkerI/codex-frosted-glass/releases/latest), extract it to a **permanent folder**, and double-click `Codex-skinned.exe`.
+**① Download the release** (no git needed): grab `codex-frosted-glass-v1.11.0.zip` from
+[Releases](https://github.com/ISkywalkerI/codex-frosted-glass/releases/latest) and extract it to a **permanent folder**.
 
-> The first run triggers a **SmartScreen prompt** (the exe is not code-signed): More info → Run anyway.
-> `Codex-skinned.cmd` is still there — it keeps a console window, shows the full output, and is handy for debugging.
-
-**Option B — clone**:
+**② Clone the repo** (if you want to tweak or track updates):
 
 ```bat
 git clone https://github.com/ISkywalkerI/codex-frosted-glass.git
 ```
 
-Do not leave the folder in a temp directory — the launcher resolves `inject.js` relative to its own location.
+> Do not leave the folder in a temp directory — the launcher resolves `inject.js` relative to its own location.
 
-The launcher adapts to the current state:
+### Two ways to launch
+
+Once you have the folder, there are **two entry points that do exactly the same thing** (both run `node inject.js --open`). Pick whichever fits:
+
+| Entry | Form | When to use |
+|---|---|---|
+| **`Codex-skinned.exe`** (recommended) | No console window; icon and version resource are written into the PE, so it pins to Start or the taskbar | Everyday use — just double-click |
+| **`Codex-skinned.cmd`** | Keeps a console window and prints the full output | Debugging; or as a fallback when the exe is blocked by security software |
+
+#### First-run security prompts (both are normal)
+
+- **SmartScreen**: the exe is not code-signed, so Windows shows "Windows protected your PC" → click **More info → Run anyway**. You only need to allow it once.
+- **Antivirus false positives**: a few AV engines flag PyInstaller one-file builds. Whitelist the whole folder, or simply **launch with `Codex-skinned.cmd` instead** — it bypasses the exe and runs the scripts with the `node` you already have installed.
+- Neither has anything to do with the skin itself: the exe contains only a few dozen lines of launcher Python, while all skin logic lives in the plain-text `inject.js` / `payload.js` / `skin.css`.
+
+The launcher then adapts to the current state:
 
 | State | Behaviour |
 |---|---|
@@ -110,7 +122,7 @@ node inject.js --restart   # force restart, then inject
 node inject.js             # daemon mode: re-inject on reload/restart (stays resident)
 ```
 
-`Codex-skinned.exe` accepts the same flags and passes them straight through, e.g. `Codex-skinned.exe --restart`.
+`Codex-skinned.exe` and `Codex-skinned.cmd` both accept these flags and pass them straight through, e.g. `Codex-skinned.exe --restart`.
 
 ## Usage
 
@@ -241,7 +253,7 @@ The log lives at `%LOCALAPPDATA%\CodexSkinned\launcher.log` (overwritten each ru
 - A major UI redesign may break the geometric tagging. The log then shows `composer× sidebar×`, and the thresholds in `payload.js` need a tweak
 - **An over-bright base colour is darkened automatically** (lightness capped at 30%), otherwise body text washes out. The hex box keeps what you typed; the colour chip shows the darkened result
 - **Editing `skin.css` / `payload.js` requires re-injection**: both are read into memory as strings when the injector starts
-- **The exe is unsigned**: expect a SmartScreen prompt on first run; a few AV engines false-positive on PyInstaller one-file builds — whitelist it, or use `Codex-skinned.cmd` / `node inject.js` instead
+- **The exe is unsigned**: expect a SmartScreen prompt on first run (More info → Run anyway); a few AV engines false-positive on PyInstaller one-file builds — whitelist it, or use `Codex-skinned.cmd` / `node inject.js` instead. See [Two ways to launch](#two-ways-to-launch)
 - **The exe is 8.4 MB**: it bundles a Python runtime so double-clicking works on any machine; the skin itself is still a few dozen KB of CSS/JS
 
 ## Troubleshooting

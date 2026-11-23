@@ -19,7 +19,7 @@
 
 ## 特性
 
-- **双击即用**：`Codex-skinned.exe` 图标已内嵌，没有控制台窗口，可以直接固定到开始屏幕 / 任务栏
+- **双击即用，两个入口**：`Codex-skinned.exe` 图标已内嵌、无控制台窗口，可以直接固定到开始屏幕 / 任务栏；想看到完整输出就换成 `Codex-skinned.cmd`
 - **可调透明度**：右下角面板拖动滑块即刻生效，无需刷新
 - **渐变配色自选**：面板内 HSV 色环挑主光 / 副光 / 底色，其余 3 盏光晕与玻璃底色自动派生；5 套预设一键切换
 - **玻璃分层**：外壳、输入框、侧边栏三层不同厚度，形成前后关系
@@ -76,24 +76,32 @@ Chromium 只在启动参数里带 `--remote-debugging-port` 时才开放调试�
 
 ## 快速开始
 
-**方式 A — 下载 Release**（不需要 git）：从 [Releases](https://github.com/ISkywalkerI/codex-frosted-glass/releases/latest) 下载 `codex-frosted-glass-v1.11.0.zip`，解压到**固定目录**，双击 `Codex-skinned.exe`。
+**① 下载 Release**（不需要 git）：从 [Releases](https://github.com/ISkywalkerI/codex-frosted-glass/releases/latest) 下载 `codex-frosted-glass-v1.11.0.zip`，解压到**固定目录**。
 
-> 首次运行会有一次 **SmartScreen 提示**（exe 未做数字签名）：点「更多信息」→「仍要运行」即可。
-> `Codex-skinned.cmd` 保留着 —— 它带控制台窗口，能看到完整输出，适合排错。
-
-**方式 B — clone**：
+**② clone 仓库**（想改代码或跟更新）：
 
 ```bat
 git clone https://github.com/ISkywalkerI/codex-frosted-glass.git
 ```
 
-把文件夹放在**固定位置**（不要放在临时目录），然后双击：
+> 不要把文件夹放在临时目录 —— 启动器要靠自身位置去找同目录的 `inject.js`。
 
-```
-Codex-skinned.exe
-```
+### 两种打开方式
 
-它会根据当前状态自动处理：
+拿到文件夹后，有**两个入口，做的事完全一样**（都是 `node inject.js --open`），按场景选一个：
+
+| 入口 | 形态 | 什么时候用 |
+|---|---|---|
+| **`Codex-skinned.exe`**（推荐） | 无控制台窗口；图标、版本信息已写进 PE，可以固定到开始屏幕 / 任务栏 | 日常使用，双击即可 |
+| **`Codex-skinned.cmd`** | 带控制台窗口，完整输出直接打在窗口里 | 排错；或 exe 被安全软件拦下、双击没反应时的替代入口 |
+
+#### 首次运行的安全提示（都是正常现象）
+
+- **SmartScreen 拦截**：exe 没有做数字签名，Windows 会弹「Windows 已保护你的电脑」→ 点 **「更多信息」→「仍要运行」**。只需放行一次，之后不再打扰。
+- **杀软误报**：极少数安全软件会对 PyInstaller 单文件打包的 exe 报毒。遇到了就**把整个文件夹加入白名单**，或者干脆**改用 `Codex-skinned.cmd` 打开** —— 它不经过 exe，只用你本机已装好的 `node` 跑脚本。
+- 这两条都与皮肤本身无关：exe 里只有启动器的几十行 Python 代码，皮肤逻辑全在明文可读的 `inject.js` / `payload.js` / `skin.css` 里。
+
+启动后它会根据当前状态自动处理：
 
 | 当前状态 | 行为 |
 |---|---|
@@ -113,7 +121,7 @@ node inject.js --restart   # 强制重启并注入
 node inject.js             # 守护模式：页面刷新/重启后自动重注入（常驻）
 ```
 
-`Codex-skinned.exe` 接受同样的参数并原样透传，例如 `Codex-skinned.exe --restart`。
+`Codex-skinned.exe` 与 `Codex-skinned.cmd` 都接受这些参数并原样透传，例如 `Codex-skinned.exe --restart`。
 
 ## 使用
 
@@ -244,7 +252,7 @@ alpha = 1 - (t / 100) * 0.94      // t=0 → 1.0（不透明），t=100 → 0.06
 - 界面大改版后几何打标可能失配，日志里会显示 `输入框× 侧栏×`，需要调整 `payload.js` 的阈值
 - **底色选得过亮会被自动压暗**（亮度上限 30%），否则正文会糊在背景上。hex 框里仍显示你输入的原值，色靶显示的是压暗后的实际颜色
 - **改 `skin.css` / `payload.js` 后必须重新注入**：这两个文件是注入进程启动时读入的字符串，不重跑入口不会生效
-- **exe 没有数字签名**：首次运行会有 SmartScreen 提示；个别安全软件对 PyInstaller 单文件有误报，遇到就加白名单，或改用 `Codex-skinned.cmd` / `node inject.js`
+- **exe 没有数字签名**：首次运行会有 SmartScreen 提示（「更多信息」→「仍要运行」）；个别安全软件对 PyInstaller 单文件有误报，遇到就加白名单，或改用 `Codex-skinned.cmd` / `node inject.js` —— 详见[「两种打开方式」](#两种打开方式)
 - **exe 有 8.4 MB**：为了在任何机器上双击即跑，它自带一份 Python 运行时；皮肤本身仍然只是几十 KB 的 CSS/JS
 
 ## 排错
