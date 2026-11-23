@@ -21,7 +21,7 @@ No binary patching, no broken signatures, fully reversible — all styling is in
 
 - **Double-click entry, two flavours** — `Codex-skinned.exe` ships with the icon embedded and no console window, so it can be pinned to Start or the taskbar; switch to `Codex-skinned.cmd` when you want the full output
 - **Adjustable transparency** — drag a slider, the whole UI updates instantly, no reload
-- **Pick your own gradient** — an in-panel HSV wheel drives main light / secondary light / base colour; the other three glows and the glass tint are derived. Five presets, one click each
+- **Pick your own gradient** — an in-panel HSV wheel drives main light / secondary light / base colour; the other three glows and the glass tint are derived. Five presets, one click each, plus a reset when you want the default back
 - **Layered depth** — shell, composer, and sidebar use three different glass thicknesses
 - **Zero background processes** — double-click, launch + inject, exit. Nothing idles afterwards
 - **Reversible** — toggle the `◐` button (or the `cf-off` class on `<html>`) to switch back to stock
@@ -76,7 +76,7 @@ Verdict: **transparency only.** One less slider, one less filter, same look, zer
 
 ## Quick start
 
-**① Download the release** (no git needed): grab `codex-frosted-glass-v1.11.0.zip` from
+**① Download the release** (no git needed): grab `codex-frosted-glass-v1.12.0.zip` from
 [Releases](https://github.com/ISkywalkerI/codex-frosted-glass/releases/latest) and extract it to a **permanent folder**.
 
 **② Clone the repo** (if you want to tweak or track updates):
@@ -139,9 +139,18 @@ The panel is **hidden by default** so it never covers the UI. Press `Ctrl + Shif
 | Drag the title bar | Move the panel (position is remembered) |
 | `◐` | Toggle the skin (turning it off restores the stock look instantly) |
 | `–` | Collapse / expand the panel |
+| **Reset colours** | Return all three colours to the default Aurora in one click (transparency untouched); the button greys out when you are already on the defaults |
 | `Ctrl + Shift + G` | Show / hide the panel (hidden by default) |
 
-Settings live in `localStorage["cf-glass-v1"]`; defaults are `transparency 55%` and the Aurora palette (`#883ff1` · `#3566f0` · `#0b1728`, i.e. the v1.9 look).
+Settings live in `localStorage["cf-glass-v1"]`; the defaults are `55% transparency` and the Aurora palette (`#883ff1` · `#3566f0` · `#0b1728`, i.e. the v1.9 look).
+
+**Changes save themselves.** Releasing the wheel (or clicking a preset) writes to `localStorage` straight away — there is no save button. Quit Codex, launch it skinned again, and your last transparency and palette are still there. A page reload drops the skin (see Known limitations), but one more double-click brings your own colours back.
+
+### Not just the chat view
+
+The skin covers the whole app — Settings, Notifications and the data pages are layered glass too, while the composer and sidebar keep their own glass thickness:
+
+![Settings page](docs/screenshot2.jpg)
 
 ## Implementation notes
 
@@ -283,7 +292,7 @@ codex-frosted-glass/
 ├─ capture.js             # in-renderer screenshot (ignores window occlusion)
 ├─ Codex-skinned_icon.ico # gradient icon, 16 / 24 / 32 / 48 / 64 / 128 / 256 px
 ├─ launcher/              # launcher source and build script (launcher.py / version.txt / build.cmd)
-└─ docs/                  # screenshot.jpg
+└─ docs/                  # screenshots: screenshot.jpg / screenshot2.jpg
 ```
 
 ## Uninstall

@@ -5,7 +5,7 @@
    其余光晕与玻璃底色由主光/副光/底色派生。
    ============================================================ */
 
-const CF_VER = "1.11.0";
+const CF_VER = "1.12.0";
 const KEY = "cf-glass-v1";
 
 /* 3 个可调颜色的默认值 = v1.9.1 的硬编码观感 */
@@ -345,6 +345,10 @@ const BODY_HTML = `
         </span>
       </div>
 
+      <div class="cf-actions">
+        <button class="cf-reset" type="button" title="重置配色：回到默认极光紫（不影响透明度）">重置配色</button>
+      </div>
+
       <div class="cf-hint">拖动标题移动 · Ctrl+Shift+G 隐藏/显示</div>
     </div>`;
 
@@ -366,6 +370,19 @@ panel.querySelectorAll(".cf-b").forEach((n) => n.closest(".cf-row")?.remove());
 const $ = (sel) => panel.querySelector(sel);
 const tInput = $(".cf-t");
 const tVal = $(".cf-tv");
+
+/* 老面板（v1.11 及以前在本页注入过）没有「重置配色」按钮：就地补一个。
+   不重建整块 .cf-body —— 重建会把已有控件连同监听一起换掉，
+   而 window.__cfPanelBound 守卫又不会给新节点重新绑一次。 */
+if (!panel.querySelector(".cf-actions")) {
+  const ACTIONS_HTML = `
+      <div class="cf-actions">
+        <button class="cf-reset" type="button" title="重置配色：回到默认极光紫（不影响透明度）">重置配色</button>
+      </div>`;
+  const hint = panel.querySelector(".cf-hint");
+  if (hint) hint.insertAdjacentHTML("beforebegin", ACTIONS_HTML);
+  else panel.querySelector(".cf-body")?.insertAdjacentHTML("beforeend", ACTIONS_HTML);
+}
 
 /* ---------- 5. 应用设置 ---------- */
 const apply = () => {
@@ -457,6 +474,10 @@ const renderColorUI = (hsvOverride, skipHex) => {
     const on = p.main === s.c.main && p.alt === s.c.alt && p.base === s.c.base;
     el.setAttribute("aria-pressed", on ? "true" : "false");
   });
+
+  // 已经是默认配色时没什么可重置的
+  const resetBtn = panel.querySelector(".cf-reset");
+  if (resetBtn) resetBtn.disabled = isStock();
 
   // 色靶：色点 + 当前编辑目标
   panel.querySelectorAll(".cf-chip").forEach((el) => {
@@ -688,6 +709,20 @@ if (!window.__cfPanelBound) {
     true
   );
 }
+
+/* 重置配色：单独守卫，因为按钮可能是本次才补进老面板的，
+   不能依赖上面 __cfPanelBound 的主绑定块再跑一遍。 */
+(() => {
+  const btn = panel.querySelector(".cf-reset");
+  if (!btn || btn.dataset.cfBound) return;
+  btn.dataset.cfBound = "1";
+  btn.addEventListener("click", () => {
+    s.c = { main: COLORS.main, alt: COLORS.alt, base: COLORS.base };
+    applyColors(); // 三色回到默认 ⇒ removeProperty，与未改过完全一致
+    renderColorUI();
+    save(); // 立即落盘，不等防抖
+  });
+})();
 
 /* ---------- 6. 跟随 SPA 重渲染 ---------- */
 let tagTimer = null;

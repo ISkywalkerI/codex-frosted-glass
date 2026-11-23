@@ -21,7 +21,7 @@
 
 - **双击即用，两个入口**：`Codex-skinned.exe` 图标已内嵌、无控制台窗口，可以直接固定到开始屏幕 / 任务栏；想看到完整输出就换成 `Codex-skinned.cmd`
 - **可调透明度**：右下角面板拖动滑块即刻生效，无需刷新
-- **渐变配色自选**：面板内 HSV 色环挑主光 / 副光 / 底色，其余 3 盏光晕与玻璃底色自动派生；5 套预设一键切换
+- **渐变配色自选**：面板内 HSV 色环挑主光 / 副光 / 底色，其余 3 盏光晕与玻璃底色自动派生；5 套预设一键切换，不满意点「重置配色」回到默认
 - **玻璃分层**：外壳、输入框、侧边栏三层不同厚度，形成前后关系
 - **零常驻进程**：双击入口 → 启动并注入 → 进程退出。平时不占任何资源
 - **可逆**：`◐` 按钮或给 `<html>` 去掉/加上 `cf-off` 类即可在皮肤/原版之间切换
@@ -76,7 +76,7 @@ Chromium 只在启动参数里带 `--remote-debugging-port` 时才开放调试�
 
 ## 快速开始
 
-**① 下载 Release**（不需要 git）：从 [Releases](https://github.com/ISkywalkerI/codex-frosted-glass/releases/latest) 下载 `codex-frosted-glass-v1.11.0.zip`，解压到**固定目录**。
+**① 下载 Release**（不需要 git）：从 [Releases](https://github.com/ISkywalkerI/codex-frosted-glass/releases/latest) 下载 `codex-frosted-glass-v1.12.0.zip`，解压到**固定目录**。
 
 **② clone 仓库**（想改代码或跟更新）：
 
@@ -138,9 +138,18 @@ node inject.js             # 守护模式：页面刷新/重启后自动重注�
 | 拖标题栏 | 移动面板（位置会记住） |
 | `◐` | 开 / 关皮肤（关掉即刻还原原版外观） |
 | `–` | 收起 / 展开面板 |
+| **重置配色** | 三种颜色一键回到默认极光紫（不影响透明度）；已经是默认配色时按钮置灰 |
 | `Ctrl + Shift + G` | 显示 / 隐藏调节面板（默认隐藏） |
 
 设置存放在 `localStorage["cf-glass-v1"]`，默认 `透明 55%`、配色为极光紫（`#883ff1` · `#3566f0` · `#0b1728`，即 v1.9 的观感）。
+
+**改动是即时保存的**：拖完色轮松手（或点完预设）就立刻落盘，不必点保存。关闭 Codex 后下次以皮肤模式打开，仍是上次的透明度和配色；页内刷新会掉皮肤（见「已知限制」），但再双击一次入口就恢复成你调过的样子。
+
+### 不只是对话页
+
+皮肤作用于整套界面，设置、通知、数据管理这些二级页面同样是分层玻璃 —— 底下的输入框、侧栏也各自保持不同的玻璃厚度：
+
+![设置页](docs/screenshot2.jpg)
 
 ## 实现细节
 
@@ -282,7 +291,7 @@ codex-frosted-glass/
 ├─ capture.js             # 渲染进程内截图（不受窗口遮挡影响）
 ├─ Codex-skinned_icon.ico # 渐变底图标（16 / 24 / 32 / 48 / 64 / 128 / 256 七档）
 ├─ launcher/              # exe 的源码与打包脚本（launcher.py / version.txt / build.cmd）
-└─ docs/                  # 展示图 screenshot.jpg
+└─ docs/                  # 展示图 screenshot.jpg / screenshot2.jpg
 ```
 
 ## 卸载 / 还原
