@@ -5,7 +5,7 @@
 [![platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0ea5e9)](#requirements)
 [![node](https://img.shields.io/badge/node-%E2%89%A518-339933)](https://nodejs.org)
 
-A **frosted-glass skin for the [Codex](https://openai.com/codex/) desktop app** (Windows / Electron) with adjustable transparency.
+A **frosted-glass skin for the [Codex](https://openai.com/codex/) desktop app** (Windows / Electron) with adjustable transparency and a built-in gradient colour picker.
 
 No binary patching, no broken signatures, fully reversible — all styling is injected at runtime, and removing a single class restores the stock look.
 
@@ -16,8 +16,8 @@ No binary patching, no broken signatures, fully reversible — all styling is in
 ![Main window](docs/preview-main.png)
 
 <p align="center">
+  <img src="docs/preview-picker.png" width="49%" alt="In-panel HSV colour wheel" />
   <img src="docs/preview-transparent.png" width="49%" alt="High transparency" />
-  <img src="docs/icon-preview.png" width="49%" alt="Icon" />
 </p>
 
 ---
@@ -25,6 +25,7 @@ No binary patching, no broken signatures, fully reversible — all styling is in
 ## Features
 
 - **Adjustable transparency** — drag a slider, the whole UI updates instantly, no reload
+- **Pick your own gradient** — an in-panel HSV wheel drives main light / secondary light / base colour; the other three glows and the glass tint are derived. Five presets, one click each
 - **Layered depth** — shell, composer, and sidebar use three different glass thicknesses
 - **Zero background processes** — double-click, launch + inject, exit. Nothing idles afterwards
 - **Reversible** — toggle the `◐` button (or the `cf-off` class on `<html>`) to switch back to stock
@@ -78,7 +79,7 @@ Verdict: **transparency only.** One less slider, one less filter, same look, zer
 
 ## Quick start
 
-**Option A — download the release** (no git needed): grab `codex-frosted-glass-v1.9.1.zip` from
+**Option A — download the release** (no git needed): grab `codex-frosted-glass-v1.10.0.zip` from
 [Releases](https://github.com/ISkywalkerI/codex-frosted-glass/releases/latest), extract it to a **permanent folder**, and double-click `Codex-skinned.cmd`.
 
 **Option B — clone**:
@@ -116,12 +117,17 @@ The panel is **hidden by default** so it never covers the UI. Press `Ctrl + Shif
 | Action | Effect |
 |---|---|
 | Drag **Transparency** | 0% fully opaque → 100% almost fully transparent |
+| Click one of the 5 presets | Swap the whole palette in one click (Aurora / Ocean / Sunset / Forest / Slate) |
+| Click **main / alt / base** | Choose which colour the wheel edits |
+| Drag the hue ring | Change hue (the ring knob follows) |
+| Drag the inner square | Change saturation (horizontal) and value (vertical) |
+| hex box / R G B boxes | Type exact values; an over-bright base colour is darkened automatically for legibility |
 | Drag the title bar | Move the panel (position is remembered) |
 | `◐` | Toggle the skin (turning it off restores the stock look instantly) |
 | `–` | Collapse / expand the panel |
 | `Ctrl + Shift + G` | Show / hide the panel (hidden by default) |
 
-Settings live in `localStorage["cf-glass-v1"]`; default is `transparency 55%`.
+Settings live in `localStorage["cf-glass-v1"]`; defaults are `transparency 55%` and the Aurora palette (`#883ff1` · `#3566f0` · `#0b1728`, i.e. the v1.9 look).
 
 ## Implementation notes
 
@@ -159,6 +165,41 @@ alpha = 1 - (t / 100) * 0.94      // t=0 → 1.0 (opaque), t=100 → 0.06
 
 All `color-mix` values reference it, so changing it forces a single style recalculation — which is why dragging feels instant.
 
+### 5. Gradient parameterisation and colour derivation
+
+The backdrop is six layers: five corner glows plus one global linear gradient. You edit three colours; everything else is derived.
+
+**The colour variables are bare `r, g, b` triples**, not hex:
+
+```css
+:root { --cf-c-main: 136, 63, 241; /* … */ }
+#cf-backdrop {
+  background: radial-gradient(…, rgba(var(--cf-c-main), 0.42), transparent 62%), /* … */;
+}
+```
+
+That keeps the stylesheet self-sufficient (no JS still renders today's look), leaves each layer's alpha in CSS where it can be tuned individually, and matches the existing `rgb(var(--cf-tint))` convention. **Switching these to hex is the one way to break the whole backdrop at once** — `rgba(var(--x), .42)` becomes invalid at computed-value time and the entire `background` declaration falls back to `none`.
+
+Derivation:
+
+| Layer | Source |
+|---|---|
+| L1 top-left `.42` | main light, as picked |
+| L2 top-right `.30` | secondary light, as picked |
+| L3 bottom-right `.32` | 50/50 mix of both, forced to `s=0.30 / l=0.45` |
+| L4 bottom-left `.16` | 70/30 mix, forced to `s=0.42 / l=0.50` |
+| L5 centre `.06` | 30/70 mix, forced to `s=0.85 / l=0.42` |
+| L6 base `.1` | picked base + two fixed offsets (`-4,-8,-12` / `-3,-4,-9`) |
+
+Mixing with a fixed saturation/lightness (rather than rotating hues by deltas) keeps the three glows in the same family as the two lights for *any* palette. An earlier version rotated hues and produced a green glow inside the Sunset palette.
+
+`--cf-tint` (the glass pane's own fill) is `base × 0.85 + main-offset × 0.08`, clamped to 0–60 so it always stays dark — it also fills `#root` and the composer, so a light tint would kill text contrast.
+
+Three safety nets:
+- if both lights are still the stock colours, the three glows take their original hard-coded values, so changing only the base leaves the glows untouched;
+- if all three colours are stock, all ten variables are `removeProperty`'d, making the render byte-identical to v1.9;
+- a base colour brighter than `L=0.30` is scaled back to 0.30 (hue and saturation preserved).
+
 ## Cost
 
 Measured across all 22 Codex processes over a 20-second window:
@@ -166,7 +207,7 @@ Measured across all 22 Codex processes over a 20-second window:
 | State | CPU (one core) | Notes |
 |---|---|---|
 | Skin off | 0.16% | baseline |
-| Skin on | 0.16% | **identical** — no repaint, no recompute while idle |
+| Skin on | 0.16% | **identical** — nothing repaints while idle; picking a colour just writes 10 CSS variables on click/drag |
 | Injector | a few seconds after double-click | exits when done; 0% otherwise |
 
 With no `backdrop-filter` at all, scrolling, window dragging and token streaming never re-blur anything — the main practical win of dropping blur in v1.9.
@@ -177,6 +218,8 @@ With no `backdrop-filter` at all, scrolling, window dragging and token streaming
 - **The app must be launched with the debug port** for injection to work; opening it from the Start menu normally will not apply the skin (that is how Chromium works)
 - No desktop transparency on Windows 10 — see above
 - A major UI redesign may break the geometric tagging. The log then shows `composer× sidebar×`, and the thresholds in `payload.js` need a tweak
+- **An over-bright base colour is darkened automatically** (lightness capped at 30%), otherwise body text washes out. The hex box keeps what you typed; the colour chip shows the darkened result
+- **Editing `skin.css` / `payload.js` requires re-injection**: both are read into memory as strings when the injector starts
 
 ## Troubleshooting
 
@@ -187,6 +230,8 @@ With no `backdrop-filter` at all, scrolling, window dragging and token streaming
 | Injection succeeds but nothing changes | Panel may be hidden — press `Ctrl+Shift+G`; or the skin is toggled off — click `◐` |
 | Text becomes unreadable | Transparency is too high; bring the slider back to 40–60% |
 | Broke after a Codex update | Class names or tokens changed; check the console log |
+| Colours changed but the backdrop did not | You edited `skin.css` / `payload.js` without re-running the entry point (styles are strings read at startup) |
+| Panel ends up off-screen | It is clamped by its real height automatically; drag it back if needed (the position is remembered) |
 
 ## Layout
 

@@ -7,7 +7,27 @@
 /* ---------- 1. 运行期变量（始终存在，供面板读写） ---------- */
 :root {
   --cf-alpha: 0.48;      /* 玻璃不透明度：0.06(最透) → 1(不透) */
-  --cf-tint: 9, 20, 34;  /* 玻璃底色（深海军蓝） */
+  --cf-tint: 9, 20, 34;  /* 玻璃底色（深海军蓝）；JS 会按底色+主光派生 */
+
+  /* --- 3 个用户可调颜色（裸 r, g, b 三元组；默认值 = v1.9.1 的观感） ---
+     必须是三元组而不是 hex：下面用 rgba(var(--x), a) 消费，
+     且 --cf-tint 由 rgb(var(--cf-tint)) 消费，写 hex 会让整条声明失效。 */
+  --cf-c-main: 136, 63, 241;   /* 主光：左上主光源（原紫） */
+  --cf-c-alt: 53, 102, 240;    /* 副光：右上副光源（原蓝） */
+  --cf-c-base: 11, 23, 40;     /* 底色：线性渐变基准（原 #0b1728） */
+
+  /* --- 3 个派生光斑：JS 按主光/副光的增量覆盖，下面是今天的数值 --- */
+  --cf-c-glow3: 85, 118, 143;  /* 右下 钢青 */
+  --cf-c-glow4: 186, 67, 122;  /* 左下 品红 */
+  --cf-c-glow5: 0, 214, 196;   /* 中心 极淡青 */
+
+  /* --- 底色渐变的 3 个停靠点（JS 覆盖；= #0b1728 / #070f1c / #08131f） --- */
+  --cf-base-top: 11, 23, 40;
+  --cf-base-mid: 7, 15, 28;
+  --cf-base-end: 8, 19, 31;
+
+  /* 色轮当前色相（面板内部用，单位 deg） */
+  --cf-h: 265;
 }
 
 /* ---------- 2. 让页面自身透明，露出底色层 ---------- */
@@ -37,13 +57,24 @@
   z-index: 0;
   pointer-events: none;
   display: none;
+  /* 底色层：颜色全部走变量，几何 / alpha / 暗角保持固定。
+     层序（由 payload.js 的派生公式决定）：
+       L1 左上主光 → 用户选的主光
+       L2 右上副光 → 用户选的副光
+       L3 右下 / L4 左下 / L5 中心 → 由主副光派生
+       L6 全局线性 → 用户选的底色 + 2 个派生停靠点 */
   background:
-    radial-gradient(920px 620px at 12% 6%, rgba(136, 63, 241, 0.42), transparent 62%),
-    radial-gradient(780px 540px at 90% 10%, rgba(53, 102, 240, 0.30), transparent 60%),
-    radial-gradient(860px 640px at 76% 94%, rgba(85, 118, 143, 0.32), transparent 62%),
-    radial-gradient(640px 480px at 22% 90%, rgba(186, 67, 122, 0.16), transparent 66%),
-    radial-gradient(520px 520px at 50% 45%, rgba(0, 214, 196, 0.06), transparent 70%),
-    linear-gradient(160deg, #0b1728 0%, #070f1c 46%, #08131f 100%);
+    radial-gradient(920px 620px at 12% 6%, rgba(var(--cf-c-main), 0.42), transparent 62%),
+    radial-gradient(780px 540px at 90% 10%, rgba(var(--cf-c-alt), 0.30), transparent 60%),
+    radial-gradient(860px 640px at 76% 94%, rgba(var(--cf-c-glow3), 0.32), transparent 62%),
+    radial-gradient(640px 480px at 22% 90%, rgba(var(--cf-c-glow4), 0.16), transparent 66%),
+    radial-gradient(520px 520px at 50% 45%, rgba(var(--cf-c-glow5), 0.06), transparent 70%),
+    linear-gradient(
+      160deg,
+      rgb(var(--cf-base-top)) 0%,
+      rgb(var(--cf-base-mid)) 46%,
+      rgb(var(--cf-base-end)) 100%
+    );
   /* 暗角，让玻璃面更聚焦 */
   box-shadow: inset 0 0 160px 10px rgba(0, 0, 0, 0.22);
 }
@@ -131,7 +162,11 @@
   right: 18px;
   bottom: 18px;
   z-index: 2147483000;
-  width: 216px;
+  width: 232px;
+  /* 窗口很矮时不让面板跑出屏幕（内部滚动） */
+  max-height: calc(100vh - 20px);
+  overflow-y: auto;
+  overflow-x: hidden;
   padding: 10px 12px 12px;
   border-radius: 14px;
   color: #e8eef7;
@@ -277,6 +312,175 @@
   font-size: 10px;
   color: rgba(232, 238, 247, 0.4);
   letter-spacing: 0.01em;
+}
+
+/* ---------- 7. 调色板 ---------- */
+/* 尺寸推导（别乱改）：
+   面板 232 − padding 24 − border 2 = 206px 可用
+   预设 5 格：5×32 + 4×7 = 188 ✓
+   色靶 3 格：3×64 + 2×6 = 204 ✓
+   色轮 132 → 半径 66；环内沿 51.5~52.5 → 环厚 13.5；色相 knob 半径 (66+52.5)/2 = 59.25
+   内嵌方块 74 → 半对角 74×√2/2 = 52.3 ≈ 环内半径，四角刚好贴内沿 */
+
+#cf-panel .cf-presets {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 7px;
+}
+#cf-panel .cf-preset {
+  height: 22px;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  background: #1a2433; /* payload.js 用 inline 三元渐变覆盖 */
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+#cf-panel .cf-preset:hover {
+  transform: translateY(-1px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 3px 8px rgba(0, 0, 0, 0.4);
+}
+#cf-panel .cf-preset[aria-pressed="true"] {
+  outline: 1.5px solid #cfd8e6;
+  outline-offset: 1px;
+}
+
+#cf-panel .cf-targets {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+#cf-panel .cf-chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 11px;
+  color: rgba(232, 238, 247, 0.7);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid transparent;
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+#cf-panel .cf-chip:hover {
+  background: rgba(255, 255, 255, 0.09);
+}
+#cf-panel .cf-chip.is-on {
+  background: rgba(255, 255, 255, 0.13);
+  border-color: rgba(255, 255, 255, 0.24);
+  color: #fff;
+}
+#cf-panel .cf-chip .cf-sw {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex: none;
+  font-style: normal;
+  background: #883ff1; /* payload.js 覆盖为当前颜色 */
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+#cf-panel .cf-wheel {
+  position: relative;
+  width: 132px;
+  height: 132px;
+  margin: 4px auto 2px;
+  touch-action: none;
+  user-select: none;
+}
+#cf-panel .cf-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  cursor: crosshair;
+  background: conic-gradient(
+    hsl(0, 100%, 50%),
+    hsl(60, 100%, 50%),
+    hsl(120, 100%, 50%),
+    hsl(180, 100%, 50%),
+    hsl(240, 100%, 50%),
+    hsl(300, 100%, 50%),
+    hsl(360, 100%, 50%)
+  );
+  -webkit-mask: radial-gradient(circle at 50% 50%, transparent 0 51.5px, #000 52.5px);
+  mask: radial-gradient(circle at 50% 50%, transparent 0 51.5px, #000 52.5px);
+}
+#cf-panel .cf-sv {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 74px;
+  height: 74px;
+  transform: translate(-50%, -50%);
+  border-radius: 5px;
+  cursor: crosshair;
+  background:
+    linear-gradient(to top, #000, rgba(0, 0, 0, 0)),
+    linear-gradient(to right, #fff, hsl(var(--cf-h, 265), 100%, 50%));
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+}
+#cf-panel .cf-knob {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.65);
+}
+
+#cf-panel .cf-readout {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px;
+  align-items: center;
+  margin-top: 2px;
+}
+#cf-panel .cf-hex {
+  all: unset;
+  box-sizing: border-box;
+  width: 100%;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 6px;
+  text-align: center;
+  cursor: text;
+  background: rgba(255, 255, 255, 0.07);
+  color: #e8eef7;
+  font: 600 11px/1 ui-monospace, Consolas, monospace;
+  text-transform: lowercase;
+}
+#cf-panel .cf-rgb {
+  display: grid;
+  grid-template-columns: repeat(3, 26px);
+  gap: 4px;
+}
+#cf-panel .cf-rgb input {
+  all: unset;
+  box-sizing: border-box;
+  width: 26px;
+  height: 22px;
+  text-align: center;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(232, 238, 247, 0.9);
+  font: 600 10px/1 ui-monospace, Consolas, monospace;
+}
+#cf-panel .cf-rgb input::-webkit-inner-spin-button,
+#cf-panel .cf-rgb input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+#cf-panel .cf-chip:focus-visible,
+#cf-panel .cf-preset:focus-visible,
+#cf-panel .cf-hex:focus-visible,
+#cf-panel .cf-rgb input:focus-visible {
+  outline: 1px solid rgba(255, 255, 255, 0.55);
+  outline-offset: 1px;
 }
 
 /* 极端透明度下文字会糊在底色上，最低保一点底 */
