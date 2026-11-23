@@ -1,0 +1,12 @@
+# Windows / 通用垃圾
+Thumbs.db
+desktop.ini
+*.lnk
+*.log
+.daemon.pid
+
+# 运行时产物
+capture*.png
+_gen/
+_dl/
+node_modules/

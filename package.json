@@ -1,0 +1,24 @@
+{
+  "name": "codex-frosted-glass",
+  "version": "1.7.0",
+  "description": "Frosted-glass skin for the Codex desktop app, injected at runtime via CDP with adjustable transparency and blur.",
+  "main": "inject.js",
+  "scripts": {
+    "start": "node inject.js --open",
+    "inject": "node inject.js --once"
+  },
+  "keywords": [
+    "codex",
+    "electron",
+    "chrome-devtools-protocol",
+    "glassmorphism",
+    "backdrop-filter",
+    "theme",
+    "windows"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT",
+  "private": true
+}
