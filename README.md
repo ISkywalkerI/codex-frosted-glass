@@ -76,7 +76,7 @@ Chromium 只在启动参数里带 `--remote-debugging-port` 时才开放调试�
 
 ## 快速开始
 
-**① 下载 Release**（不需要 git）：从 [Releases](https://github.com/ISkywalkerI/codex-frosted-glass/releases/latest) 下载 `codex-frosted-glass-v1.12.0.zip`，解压到**固定目录**。
+**① 下载 Release**（不需要 git）：从 [Releases](https://github.com/ISkywalkerI/codex-frosted-glass/releases/latest) 下载 `codex-frosted-glass-v1.12.1.zip`，解压到**固定目录**。
 
 **② clone 仓库**（想改代码或跟更新）：
 
@@ -125,7 +125,7 @@ node inject.js             # 守护模式：页面刷新/重启后自动重注�
 
 ## 使用
 
-调节面板**默认隐藏**（不挡视线），按 `Ctrl + Shift + G` 调出；注入成功后右下角会先闪一条 6 秒的提示告诉你这个快捷键：
+调节面板**默认隐藏**（不挡视线），按 `Ctrl + Shift + G` 调出。**每次以皮肤模式打开**，窗口顶部都会先亮一条 5 秒的提示告诉你这个快捷键，然后自动消失 —— 面板开着时提示文字会改成怎么隐藏它，所以不会出现「面板已经在却还在告诉你按什么调出来」的错位：
 
 | 操作 | 效果 |
 |---|---|
@@ -139,7 +139,7 @@ node inject.js             # 守护模式：页面刷新/重启后自动重注�
 | `◐` | 开 / 关皮肤（关掉即刻还原原版外观） |
 | `–` | 收起 / 展开面板 |
 | **重置配色** | 三种颜色一键回到默认极光紫（不影响透明度）；已经是默认配色时按钮置灰 |
-| `Ctrl + Shift + G` | 显示 / 隐藏调节面板（默认隐藏） |
+| `Ctrl + Shift + G` | 显示 / 隐藏调节面板（默认隐藏；每次打开会提示 5 秒） |
 
 设置存放在 `localStorage["cf-glass-v1"]`，默认 `透明 55%`、配色为极光紫（`#883ff1` · `#3566f0` · `#0b1728`，即 v1.9 的观感）。
 

@@ -5,7 +5,7 @@
    其余光晕与玻璃底色由主光/副光/底色派生。
    ============================================================ */
 
-const CF_VER = "1.12.0";
+const CF_VER = "1.12.1";
 const KEY = "cf-glass-v1";
 
 /* 3 个可调颜色的默认值 = v1.9.1 的硬编码观感 */
@@ -750,13 +750,18 @@ window.addEventListener("resize", () => {
 tag();
 apply();
 
-/* 面板默认是隐藏的，注入后短暂提示一次怎么调出来 */
-if (s.hidden && !document.getElementById("cf-toast")) {
+/* 每次注入（= 每次双击入口、每次以皮肤模式打开）都强制提示 5 秒。
+   旧版只在「面板隐藏」时提示，用户一旦把面板调出来过（hidden=false），
+   以后每次启动就静悄悄地什么都不显示 —— 快捷键反而更容易忘。 */
+{
+  document.getElementById("cf-toast")?.remove();
   const tip = document.createElement("div");
   tip.id = "cf-toast";
-  tip.textContent = "调节面板已隐藏 · Ctrl+Shift+G 调出";
+  tip.textContent = s.hidden
+    ? "调节面板已隐藏 · Ctrl + Shift + G 调出"
+    : "Ctrl + Shift + G 隐藏调节面板";
   document.body.appendChild(tip);
-  setTimeout(() => tip.remove(), 6500);
+  setTimeout(() => tip.remove(), 5000);
 }
 
 document.documentElement.dataset.cfSkin = CF_VER;

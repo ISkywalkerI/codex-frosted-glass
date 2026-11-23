@@ -76,7 +76,7 @@ Verdict: **transparency only.** One less slider, one less filter, same look, zer
 
 ## Quick start
 
-**① Download the release** (no git needed): grab `codex-frosted-glass-v1.12.0.zip` from
+**① Download the release** (no git needed): grab `codex-frosted-glass-v1.12.1.zip` from
 [Releases](https://github.com/ISkywalkerI/codex-frosted-glass/releases/latest) and extract it to a **permanent folder**.
 
 **② Clone the repo** (if you want to tweak or track updates):
@@ -126,7 +126,7 @@ node inject.js             # daemon mode: re-inject on reload/restart (stays res
 
 ## Usage
 
-The panel is **hidden by default** so it never covers the UI. Press `Ctrl + Shift + G` to show it — after each injection a 6-second hint appears in the bottom-right corner telling you the shortcut:
+The panel is **hidden by default** so it never covers the UI. Press `Ctrl + Shift + G` to show it. **Every skinned launch** shows a 5-second hint at the top of the window telling you the shortcut, then it fades away — if the panel is already open the text switches to how to hide it, so it never tells you to summon something that is already there:
 
 | Action | Effect |
 |---|---|
@@ -140,7 +140,7 @@ The panel is **hidden by default** so it never covers the UI. Press `Ctrl + Shif
 | `◐` | Toggle the skin (turning it off restores the stock look instantly) |
 | `–` | Collapse / expand the panel |
 | **Reset colours** | Return all three colours to the default Aurora in one click (transparency untouched); the button greys out when you are already on the defaults |
-| `Ctrl + Shift + G` | Show / hide the panel (hidden by default) |
+| `Ctrl + Shift + G` | Show / hide the panel (hidden by default; a 5-second hint appears on every launch) |
 
 Settings live in `localStorage["cf-glass-v1"]`; the defaults are `55% transparency` and the Aurora palette (`#883ff1` · `#3566f0` · `#0b1728`, i.e. the v1.9 look).
 
