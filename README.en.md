@@ -78,7 +78,7 @@ Verdict: **transparency only.** One less slider, one less filter, same look, zer
 
 ## Quick start
 
-**Option A — download the release** (no git needed): grab `codex-frosted-glass-v1.9.0.zip` from
+**Option A — download the release** (no git needed): grab `codex-frosted-glass-v1.9.1.zip` from
 [Releases](https://github.com/ISkywalkerI/codex-frosted-glass/releases/latest), extract it to a **permanent folder**, and double-click `Codex-skinned.cmd`.
 
 **Option B — clone**:
