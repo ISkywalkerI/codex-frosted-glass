@@ -1,5 +1,10 @@
 # Codex Frosted Glass
 
+[![release](https://img.shields.io/github/v/release/ISkywalkerI/codex-frosted-glass?color=8b5cf6)](https://github.com/ISkywalkerI/codex-frosted-glass/releases/latest)
+[![license](https://img.shields.io/github/license/ISkywalkerI/codex-frosted-glass?color=3b82f6)](LICENSE)
+[![platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0ea5e9)](#requirements)
+[![node](https://img.shields.io/badge/node-%E2%89%A518-339933)](https://nodejs.org)
+
 A **frosted-glass skin for the [Codex](https://openai.com/codex/) desktop app** (Windows / Electron) with adjustable transparency and blur.
 
 No binary patching, no broken signatures, fully reversible — all styling is injected at runtime, and removing a single class restores the stock look.

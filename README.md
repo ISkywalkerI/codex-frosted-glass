@@ -1,5 +1,10 @@
 # Codex Frosted Glass
 
+[![release](https://img.shields.io/github/v/release/ISkywalkerI/codex-frosted-glass?color=8b5cf6)](https://github.com/ISkywalkerI/codex-frosted-glass/releases/latest)
+[![license](https://img.shields.io/github/license/ISkywalkerI/codex-frosted-glass?color=3b82f6)](LICENSE)
+[![platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0ea5e9)](#环境要求)
+[![node](https://img.shields.io/badge/node-%E2%89%A518-339933)](https://nodejs.org)
+
 给 [Codex](https://openai.com/codex/) 桌面端（Windows / Electron）加一层**可调透明度的磨砂玻璃皮肤**。
 
 不修改安装包、不破坏数字签名、随时可一键还原 —— 所有样式都在运行时注入，给根元素加一个 class 就完全恢复原样。
