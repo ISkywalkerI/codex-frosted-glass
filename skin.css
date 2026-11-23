@@ -1,19 +1,16 @@
 /* ============================================================
-   Codex 磨砂玻璃皮肤 (Frosted Glass Skin)
-   由 --cf-alpha / --cf-blur 两个变量驱动，可实时调节。
+   Codex 磨砂玻璃皮肤 (Frosted Glass Skin) — 纯透明度版
+   只保留「透明度」一个可调项，不做模糊、不加背景细节。
    所有变更都在 :root:not(.cf-off) 作用域内 —— 加 .cf-off 即完全还原。
    ============================================================ */
 
 /* ---------- 1. 运行期变量（始终存在，供面板读写） ---------- */
 :root {
-  --cf-alpha: 0.48;          /* 玻璃不透明度：0.06(最透) → 1(不透) */
-  --cf-blur: 26px;           /* 磨砂模糊半径 */
-  --cf-frost: 0.028;         /* 表面颗粒浓度，随模糊值变化 */
-  --cf-sat: 1.65;            /* 饱和度增强，玻璃才有"润"的感觉 */
-  --cf-tint: 9, 20, 34;      /* 玻璃底色（深海军蓝） */
+  --cf-alpha: 0.48;      /* 玻璃不透明度：0.06(最透) → 1(不透) */
+  --cf-tint: 9, 20, 34;  /* 玻璃底色（深海军蓝） */
 }
 
-/* ---------- 2. 让页面自身透明，露出氛围层 ---------- */
+/* ---------- 2. 让页面自身透明，露出底色层 ---------- */
 :root:not(.cf-off) {
   background: transparent !important;
 }
@@ -27,36 +24,26 @@
   background-image: none !important;
 }
 
-/* App 根节点抬到氛围层之上 */
+/* App 根节点抬到底色层之上 */
 :root:not(.cf-off) #root {
   position: relative;
   z-index: 1;
 }
 
-/* ---------- 3. 氛围层：玻璃后面的"景" ---------- */
-/* 关键：这层必须有"细节"（高频信息），模糊才看得见。
-   只有大光斑/平滑渐变时，blur 再大也是空转 —— 因为模糊只吃掉细节。 */
+/* ---------- 3. 玻璃后面的底色（一层平滑渐变，不含任何细节） ---------- */
 #cf-backdrop {
   position: fixed;
   inset: 0;
   z-index: 0;
   pointer-events: none;
   display: none;
-
-  /* 底层光晕（低频，负责氛围） */
-  --cf-ambient:
+  background:
     radial-gradient(920px 620px at 12% 6%, rgba(136, 63, 241, 0.42), transparent 62%),
     radial-gradient(780px 540px at 90% 10%, rgba(53, 102, 240, 0.30), transparent 60%),
     radial-gradient(860px 640px at 76% 94%, rgba(85, 118, 143, 0.32), transparent 62%),
     radial-gradient(640px 480px at 22% 90%, rgba(186, 67, 122, 0.16), transparent 66%),
     radial-gradient(520px 520px at 50% 45%, rgba(0, 214, 196, 0.06), transparent 70%),
     linear-gradient(160deg, #0b1728 0%, #070f1c 46%, #08131f 100%);
-
-  /* 第一层是 payload.js 生成的光斑场（高频，负责让 blur 有意义） */
-  background-image: var(--cf-scene, none), var(--cf-ambient);
-  background-size: cover, cover;
-  background-repeat: no-repeat, no-repeat;
-
   /* 暗角，让玻璃面更聚焦 */
   box-shadow: inset 0 0 160px 10px rgba(0, 0, 0, 0.22);
 }
@@ -65,25 +52,9 @@
   display: block;
 }
 
-/* 细颗粒，避免大面积渐变出现色带，同时给玻璃"磨砂"的质地。
-   真实磨砂玻璃：表面越粗糙，散射颗粒越明显 —— 所以颗粒浓度跟随模糊值。 */
-#cf-grain {
-  position: fixed;
-  inset: 0;
-  z-index: 2147482000;
-  pointer-events: none;
-  opacity: var(--cf-frost, 0.028);
-  display: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
-}
-
-:root:not(.cf-off) #cf-grain {
-  display: block;
-}
-
 /* ---------- 4. 表面令牌透明度化 ---------- */
 /* 这是关键：Codex 的 UI 完全由设计令牌驱动，
-   把"实心表面"令牌换成带 alpha 的 color-mix，几乎所有面板自动变玻璃。 */
+   把"实心表面"令牌换成带 alpha 的 color-mix，几乎所有面板自动变半透明。 */
 :root:not(.cf-off) {
   --color-token-main-surface-primary: color-mix(in srgb, #011627 calc(var(--cf-alpha) * 100%), transparent);
   --color-surface: color-mix(in srgb, #011627 calc(var(--cf-alpha) * 100%), transparent);
@@ -121,9 +92,9 @@
   --codeblock-background-color: color-mix(in srgb, #101010 min(100%, calc(var(--cf-alpha) * 190%)), transparent);
 }
 
-/* ---------- 5. 玻璃表面：真磨砂 ---------- */
+/* ---------- 5. 外壳与局部：只是更薄/更厚的一层玻璃 ---------- */
 
-/* 主外壳：整窗一片磨砂玻璃（#root 永远铺满窗口，结构最稳定） */
+/* 主外壳：整窗一片半透明玻璃（#root 永远铺满窗口，结构最稳定） */
 :root:not(.cf-off) #root {
   position: relative;
   z-index: 1;
@@ -135,37 +106,22 @@
     rgba(255, 255, 255, 0) 55%,
     rgba(255, 255, 255, 0.018) 100%
   ) !important;
-  -webkit-backdrop-filter: blur(var(--cf-blur)) saturate(var(--cf-sat));
-  backdrop-filter: blur(var(--cf-blur)) saturate(var(--cf-sat));
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.075),
     inset 0 0 0 1px rgba(255, 255, 255, 0.05);
 }
 
-/* 输入框：最需要"玻璃感"的地方，模糊更强 */
+/* 输入框：稍微厚一点，加顶部内高光，像一块凸起的玻璃 */
 :root:not(.cf-off) [data-cf-composer] {
   background-color: color-mix(in srgb, rgb(var(--cf-tint)) min(100%, calc(var(--cf-alpha) * 118%)), transparent) !important;
-  -webkit-backdrop-filter: blur(calc(var(--cf-blur) * 1.15)) saturate(calc(var(--cf-sat) * 1.08));
-  backdrop-filter: blur(calc(var(--cf-blur) * 1.15)) saturate(calc(var(--cf-sat) * 1.08));
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.09),
     inset 0 0 0 1px rgba(255, 255, 255, 0.06),
     0 8px 28px rgba(0, 0, 0, 0.32);
-  transition: box-shadow 180ms ease;
 }
 
-/* 顶部标题栏：只磨砂，不上色，让窗口看起来"开"在桌面上 */
-:root:not(.cf-off) [data-cf-header] {
-  -webkit-backdrop-filter: blur(calc(var(--cf-blur) * 0.9)) saturate(1.2);
-  backdrop-filter: blur(calc(var(--cf-blur) * 0.9)) saturate(1.2);
-  background-color: rgba(7, 15, 28, calc(var(--cf-alpha) * 0.42)) !important;
-  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.045);
-}
-
-/* 侧边栏：靠在外壳磨砂面上，再加一层薄玻璃做层次 */
+/* 侧边栏：更薄更通透，右侧一条 1px 亮边分隔 */
 :root:not(.cf-off) [data-cf-sidebar] {
-  -webkit-backdrop-filter: blur(calc(var(--cf-blur) * 0.7)) saturate(1.3);
-  backdrop-filter: blur(calc(var(--cf-blur) * 0.7)) saturate(1.3);
   box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.045);
 }
 
@@ -175,14 +131,12 @@
   right: 18px;
   bottom: 18px;
   z-index: 2147483000;
-  width: 232px;
+  width: 216px;
   padding: 10px 12px 12px;
   border-radius: 14px;
   color: #e8eef7;
   font: 500 12px/1.4 "Segoe UI", -apple-system, system-ui, sans-serif;
-  background: rgba(14, 24, 38, 0.62);
-  -webkit-backdrop-filter: blur(22px) saturate(1.7);
-  backdrop-filter: blur(22px) saturate(1.7);
+  background: rgba(14, 24, 38, 0.92);
   border: 1px solid rgba(255, 255, 255, 0.14);
   box-shadow: 0 16px 44px rgba(0, 0, 0, 0.46), inset 0 1px 0 rgba(255, 255, 255, 0.12);
   user-select: none;
@@ -296,10 +250,10 @@
   letter-spacing: 0.01em;
 }
 
-/* 不支持 backdrop-filter 时退回更实的底，保证可读 */
-@supports not (backdrop-filter: blur(1px)) {
+/* 极端透明度下文字会糊在底色上，最低保一点底 */
+@supports not (color: color-mix(in srgb, red 50%, transparent)) {
   :root:not(.cf-off) #root,
   :root:not(.cf-off) [data-cf-composer] {
-    background-color: rgba(9, 20, 34, 0.94) !important;
+    background-color: rgba(9, 20, 34, 0.9) !important;
   }
 }

@@ -5,7 +5,7 @@
 [![platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0ea5e9)](#requirements)
 [![node](https://img.shields.io/badge/node-%E2%89%A518-339933)](https://nodejs.org)
 
-A **frosted-glass skin for the [Codex](https://openai.com/codex/) desktop app** (Windows / Electron) with adjustable transparency and blur.
+A **frosted-glass skin for the [Codex](https://openai.com/codex/) desktop app** (Windows / Electron) with adjustable transparency.
 
 No binary patching, no broken signatures, fully reversible — all styling is injected at runtime, and removing a single class restores the stock look.
 
@@ -24,8 +24,7 @@ No binary patching, no broken signatures, fully reversible — all styling is in
 
 ## Features
 
-- **Real frosted glass** — `backdrop-filter: blur() saturate()` on the app shell, blurred live rather than faked with a translucent image
-- **Live-adjustable** — drag a slider, the whole UI updates instantly, no reload
+- **Adjustable transparency** — drag a slider, the whole UI updates instantly, no reload
 - **Layered depth** — shell, composer, and sidebar use three different glass thicknesses
 - **Zero background processes** — double-click, launch + inject, exit. Nothing idles afterwards
 - **Reversible** — toggle the `◐` button (or the `cf-off` class on `<html>`) to switch back to stock
@@ -42,7 +41,7 @@ flowchart LR
     D -->|"WebSocket Runtime.evaluate"| C
     C --> E["payload.js runs"]
     E --> F["skin.css injected"]
-    E --> G["Ambience layers #cf-backdrop + #cf-grain"]
+    E --> G["Base layer #cf-backdrop"]
     E --> H["Control panel + geometric tagging"]
 ```
 
@@ -56,27 +55,17 @@ The intuitive expectation is "blur my wallpaper behind the window". That is not 
 - I tested Windows 10's DWM acrylic (`SetWindowCompositionAttribute` — the call even reports success): **the blur does not penetrate an opaque Electron window**, the surface stays flat
 - The only real fix is repacking `app.asar` to change the window flags, which breaks MSIX signing and auto-update — not worth it
 
-So this project takes the other route: **draw an ambience gradient inside the app as the "thing behind the glass", then blur that for real.** Visually identical to frosted glass, and completely reversible.
+So this project only does **transparency**: draw a smooth ambient gradient inside the app as the base colour, then swap the "solid surface" tokens for translucent `color-mix` values. No blur anywhere, fully reversible.
 
-### Why the backdrop needs actual detail
+### Why there is no blur
 
-Blur only removes **high-frequency information**. If the backdrop is nothing but smooth gradients, `blur(0px)` and `blur(60px)` render the same image — the slider looks broken. That was the v1.7 bug: dragging blur from 0 to 60 changed the screen by only **0.39%** on average.
+v1.7 and v1.8 tried adding `backdrop-filter: blur()`. It was **removed in v1.9**, for three blunt reasons:
 
-v1.8 replaces the backdrop with a **four-scale bokeh field** (hard-edged discs, generated as SVG at runtime with a fixed seed, so it looks the same on every launch). Each scale disappears at a different blur radius, so the whole slider range gives visible feedback:
+- **There is nothing behind the glass to blur.** The backdrop is a smooth gradient drawn by us, and blur only removes high-frequency detail — dragging blur from 0 to 60 changed the screen by **0.39%** on average. The slider was effectively dead.
+- **The only fix was to fake it.** v1.8 stuffed a multi-scale bokeh field behind the glass so blur would have something to chew on. That meant an extra DOM layer, an extra SVG, and a full-window GPU blur — all to feed a parameter that should not exist.
+- **Real desktop-through blur is impossible on Windows 10** (see above), and a full-window `blur(38px)` is exactly the most expensive thing you can do while scrolling or streaming tokens.
 
-| Scale | Count | 0 → 10px | 10 → 35px | 35 → 60px |
-|---|---|---|---|---|
-| 1–4px dust specks | 160 | gone immediately | — | — |
-| 5–16px small discs | 80 | edges soften | merge into base | — |
-| 22–70px mid discs | 46 | unchanged | outlines gone | — |
-| 90–210px glows | 16 | unchanged | contours fade | melt into haze |
-
-<p>
-  <img src="docs/blur-min.png" width="49%" alt="blur 0px: crisp bokeh discs" />
-  <img src="docs/blur-max.png" width="49%" alt="blur 60px: smooth haze" />
-</p>
-
-The surface grain (`#cf-grain`) also scales with blur: `0.004 + blur × 0.0007`. The rougher the glass, the more visible the scattering — which is how real frosted glass behaves.
+Verdict: **transparency only.** One less slider, one less filter, same look, zero cost.
 
 ## Requirements
 
@@ -89,7 +78,7 @@ The surface grain (`#cf-grain`) also scales with blur: `0.004 + blur × 0.0007`.
 
 ## Quick start
 
-**Option A — download the release** (no git needed): grab `codex-frosted-glass-v1.8.0.zip` from
+**Option A — download the release** (no git needed): grab `codex-frosted-glass-v1.9.0.zip` from
 [Releases](https://github.com/ISkywalkerI/codex-frosted-glass/releases/latest), extract it to a **permanent folder**, and double-click `Codex-skinned.cmd`.
 
 **Option B — clone**:
@@ -127,13 +116,12 @@ A control panel appears in the bottom-right corner:
 | Action | Effect |
 |---|---|
 | Drag **Transparency** | 0% fully opaque → 100% almost fully transparent |
-| Drag **Blur** | 0–60 px |
 | Drag the title bar | Move the panel (position is remembered) |
 | `◐` | Toggle the skin (turning it off restores the stock look instantly) |
 | `–` | Collapse / expand the panel |
 | `Ctrl + Shift + G` | Hide / show the panel (handy for screenshots) |
 
-Settings live in `localStorage["cf-glass-v1"]`; defaults are `transparency 55% / blur 26px`.
+Settings live in `localStorage["cf-glass-v1"]`; default is `transparency 55%`.
 
 ## Implementation notes
 
@@ -152,9 +140,9 @@ One change and every panel referencing those tokens becomes translucent. Over 20
 
 | Layer | Treatment |
 |---|---|
-| Shell `#root` | `blur(var(--cf-blur)) saturate(1.65)` — one sheet of glass across the window |
-| Composer | `alpha × 1.18` + `blur × 1.15` + 1px top inner highlight (reads as raised glass) |
-| Sidebar | `blur × 0.7` + `saturate 1.3` + 1px right edge highlight (thinner, more transparent) |
+| Shell `#root` | base colour at 0.62 alpha — one sheet of glass across the window, plus a 1px inner top highlight |
+| Composer | `alpha × 1.18` + 1px top inner highlight + drop shadow (reads as raised glass) |
+| Sidebar | 1px right edge highlight; thinner and more transparent than the shell |
 
 ### 3. Geometric tagging instead of class names
 
@@ -167,10 +155,9 @@ Codex uses hashed class names (`ComposerLayoutBody-uBBf1A`) that change on every
 
 ```js
 alpha = 1 - (t / 100) * 0.94      // t=0 → 1.0 (opaque), t=100 → 0.06
---cf-blur = Npx
 ```
 
-Every `color-mix` and `blur()` references those two variables, so changing them forces a single style recalculation — which is why dragging feels instant.
+All `color-mix` values reference it, so changing it forces a single style recalculation — which is why dragging feels instant.
 
 ## Cost
 
@@ -182,7 +169,7 @@ Measured across all 22 Codex processes over a 20-second window:
 | Skin on | 0.16% | **identical** — no repaint, no recompute while idle |
 | Injector | a few seconds after double-click | exits when done; 0% otherwise |
 
-The real cost appears while **scrolling, dragging the window, or streaming tokens**, where every frame re-blurs the backdrop. `blur(38px)` is on the heavy side; if you notice dropped frames, lowering it to 15–20px is the most effective change and looks nearly the same.
+With no `backdrop-filter` at all, scrolling, window dragging and token streaming never re-blur anything — the main practical win of dropping blur in v1.9.
 
 ## Known limitations
 

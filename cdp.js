@@ -22,7 +22,9 @@ function getTargets() {
 
 async function connect() {
   const targets = await getTargets();
-  const page = targets.find((t) => t.type === "page" && t.webSocketDebuggerUrl);
+  const pages = targets.filter((t) => t.type === "page" && t.webSocketDebuggerUrl);
+  // 优先主窗口（app://-/index.html），避免连到头像浮层等附属窗口
+  const page = pages.find((t) => /index\.html$/.test(t.url || "")) || pages[0];
   if (!page) throw new Error("找不到页面目标");
   const ws = new WebSocket(page.webSocketDebuggerUrl);
   await new Promise((res, rej) => {

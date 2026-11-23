@@ -1,16 +1,24 @@
 /* ============================================================
    payload.js —— 在 Codex 渲染进程内执行
    inject.js 会把它包成：(() => { const CSS = "..."; <本文件内容> })()
+   纯透明度版：只调透明，不做模糊、不放背景细节。
    ============================================================ */
 
-const CF_VER = "1.8.0";
+const CF_VER = "1.9.0";
 const KEY = "cf-glass-v1";
-const DEFAULTS = { t: 55, blur: 26, on: true, collapsed: false, x: null, y: null };
+const DEFAULTS = { t: 55, on: true, collapsed: false, x: null, y: null };
+
+/* 头像浮层这类小窗口不套皮肤：它会把浮层变成一块渐变底 + 角落多出控制面板 */
+if (/avatar-overlay/i.test(location.search + location.hash)) {
+  return { version: CF_VER, skipped: "avatar-overlay" };
+}
 
 let s = DEFAULTS;
 try {
   s = Object.assign({}, DEFAULTS, JSON.parse(localStorage.getItem(KEY) || "{}"));
 } catch (e) {}
+// 兼容旧版本存下的 blur 字段：直接丢弃
+delete s.blur;
 
 const save = () => {
   try {
@@ -27,7 +35,7 @@ if (!styleEl) {
 }
 styleEl.textContent = CSS;
 
-/* ---------- 2. 氛围层 ---------- */
+/* ---------- 2. 底色层（玻璃后面只有一层平滑渐变） ---------- */
 const ensureLayer = (id) => {
   let el = document.getElementById(id);
   if (!el) {
@@ -39,66 +47,13 @@ const ensureLayer = (id) => {
   return el;
 };
 ensureLayer("cf-backdrop");
-ensureLayer("cf-grain");
 
-/* ---------- 2.5 玻璃后面的"景"：多尺度光斑场 ----------
-   为什么需要：backdrop-filter 的 blur 只会吃掉画面的"细节"（高频信息）。
-   如果背后只有一层平滑渐变，blur 0 → 60 出来的是同一张图，用户会觉得滑块坏了。
-   所以这里放一张由小到大 4 个尺度的光斑图：
-     0-6px 的尘埃  → 模糊一开就糊掉（低端立刻有反馈）
-     20-70px 光斑  → 中段逐渐软化
-     70-150px 光晕 → 高端才融合
-   这样 0 → 60 全程都有可感知的变化。种子固定，每次启动画面一致。 */
-const mulberry32 = (a) => () => {
-  a |= 0;
-  a = (a + 0x6d2b79f5) | 0;
-  let t = Math.imul(a ^ (a >>> 15), 1 | a);
-  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-};
-
-const buildScene = () => {
-  const rnd = mulberry32(20261123);
-  const W = 1600;
-  const H = 1000;
-  const PAL = [
-    [232, 238, 255],
-    [186, 158, 255],
-    [140, 170, 255],
-    [150, 232, 226],
-    [255, 196, 214],
-    [255, 226, 190],
-  ];
-  const dots = [];
-  const add = (n, rMin, rMax, aMin, aMax) => {
-    for (let i = 0; i < n; i++) {
-      const c = PAL[Math.floor(rnd() * PAL.length)];
-      const r = (rMin + rnd() * (rMax - rMin)).toFixed(1);
-      const a = (aMin + rnd() * (aMax - aMin)).toFixed(3);
-      dots.push(
-        `<circle cx='${(rnd() * W).toFixed(1)}' cy='${(rnd() * H).toFixed(1)}' r='${r}' fill='rgb(${c})' fill-opacity='${a}'/>`
-      );
-    }
-  };
-  add(160, 1.2, 3.8, 0.1, 0.26); // 尘埃 / 光点
-  add(80, 5, 16, 0.05, 0.13); // 小光斑
-  add(46, 22, 70, 0.045, 0.1); // 中光斑
-  add(16, 90, 210, 0.025, 0.055); // 大光晕
-
-  return (
-    `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 ${W} ${H}' preserveAspectRatio='xMidYMid slice'>` +
-    dots.join("") +
-    `</svg>`
-  );
-};
-
+/* 清掉旧版本（含模糊）留下的颗粒层与散景背景 */
+document.getElementById("cf-grain")?.remove();
 const backdropEl = document.getElementById("cf-backdrop");
-if (backdropEl && backdropEl.dataset.cfScene !== CF_VER) {
-  backdropEl.style.setProperty(
-    "--cf-scene",
-    `url("data:image/svg+xml,${encodeURIComponent(buildScene())}")`
-  );
-  backdropEl.dataset.cfScene = CF_VER;
+if (backdropEl) {
+  backdropEl.style.removeProperty("--cf-scene");
+  delete backdropEl.dataset.cfScene;
 }
 
 /* ---------- 3. 几何打标：找出输入框 / 侧边栏 ---------- */
@@ -160,37 +115,28 @@ if (!panel) {
         <input class="cf-t" type="range" min="0" max="100" step="1">
         <b class="cf-tv"></b>
       </label>
-      <label class="cf-row">
-        <span>模糊</span>
-        <input class="cf-b" type="range" min="0" max="60" step="1">
-        <b class="cf-bv"></b>
-      </label>
       <div class="cf-hint">拖动标题移动 · Ctrl+Shift+G 隐藏面板</div>
     </div>`;
   document.body.appendChild(panel);
+} else {
+  // 清掉旧版本残留的"模糊"滑块
+  panel.querySelectorAll(".cf-b").forEach((n) => n.closest(".cf-row").remove());
 }
 
 const $ = (sel) => panel.querySelector(sel);
 const tInput = $(".cf-t");
-const bInput = $(".cf-b");
 const tVal = $(".cf-tv");
-const bVal = $(".cf-bv");
 
 /* ---------- 5. 应用设置 ---------- */
 const apply = () => {
   const html = document.documentElement;
   const alpha = 1 - (s.t / 100) * 0.94; // t=0 → 1.0（不透）, t=100 → 0.06（几乎全透）
-  const frost = 0.004 + s.blur * 0.0007; // 模糊越大 → 表面颗粒越明显（模拟玻璃越粗糙）
   html.style.setProperty("--cf-alpha", alpha.toFixed(3));
-  html.style.setProperty("--cf-blur", s.blur + "px");
-  html.style.setProperty("--cf-frost", frost.toFixed(4));
   html.classList.toggle("cf-off", !s.on);
   panel.classList.toggle("cf-off", !s.on);
   panel.classList.toggle("cf-collapsed", !!s.collapsed);
   tInput.value = s.t;
-  bInput.value = s.blur;
   tVal.textContent = s.t + "%";
-  bVal.textContent = s.blur + "px";
   if (s.x !== null && s.y !== null) {
     const maxX = window.innerWidth - 60;
     const maxY = window.innerHeight - 40;
@@ -209,11 +155,6 @@ const scheduleSave = () => {
 
 tInput.addEventListener("input", () => {
   s.t = +tInput.value;
-  apply();
-  scheduleSave();
-});
-bInput.addEventListener("input", () => {
-  s.blur = +bInput.value;
   apply();
   scheduleSave();
 });
@@ -300,7 +241,6 @@ document.documentElement.dataset.cfSkin = CF_VER;
 return {
   version: CF_VER,
   alpha: getComputedStyle(document.documentElement).getPropertyValue("--cf-alpha").trim(),
-  blur: getComputedStyle(document.documentElement).getPropertyValue("--cf-blur").trim(),
   composer: !!document.querySelector("[data-cf-composer]"),
   sidebar: !!document.querySelector("[data-cf-sidebar]"),
   surfaceToken: getComputedStyle(document.documentElement)

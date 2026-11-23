@@ -378,9 +378,13 @@ async function injectTarget(t) {
         try { await conn.send("Page.enable"); } catch {}
 
         const v = value || {};
+        if (v.skipped) {
+          log(`- 跳过 ${t.title || "窗口"}（${v.skipped}，不需要皮肤）`);
+          continue;
+        }
         log(
           `✓ 已注入 ${t.title || "Codex"}` +
-            ` · 透明 ${v.alpha || "-"} / 模糊 ${v.blur || "-"}` +
+            ` · 透明 ${v.alpha || "-"}` +
             ` · 输入框${v.composer ? "✓" : "×"} 侧栏${v.sidebar ? "✓" : "×"}`
         );
         if (!v.surfaceToken || v.surfaceToken === "#011627" || v.surfaceToken === "rgb(1, 22, 39)") {
