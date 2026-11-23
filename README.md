@@ -13,12 +13,7 @@
 
 [简体中文] · **English** → [README.en.md](README.en.md)
 
-![主界面](docs/preview-main.png)
-
-<p align="center">
-  <img src="docs/preview-picker.png" width="49%" alt="面板内的 HSV 色轮" />
-  <img src="docs/preview-transparent.png" width="49%" alt="高透明度" />
-</p>
+![主界面](docs/screenshot.jpg)
 
 ---
 
@@ -79,7 +74,7 @@ Chromium 只在启动参数里带 `--remote-debugging-port` 时才开放调试�
 
 ## 快速开始
 
-**方式 A — 下载 Release**（不需要 git）：从 [Releases](https://github.com/ISkywalkerI/codex-frosted-glass/releases/latest) 下载 `codex-frosted-glass-v1.10.0.zip`，解压到**固定目录**，双击 `Codex-skinned.cmd`。
+**方式 A — 下载 Release**（不需要 git）：从 [Releases](https://github.com/ISkywalkerI/codex-frosted-glass/releases/latest) 下载 `codex-frosted-glass-v1.10.1.zip`，解压到**固定目录**，双击 `Codex-skinned.cmd`。
 
 **方式 B — clone**：
 
@@ -240,14 +235,14 @@ alpha = 1 - (t / 100) * 0.94      // t=0 → 1.0（不透明），t=100 → 0.06
 
 ```
 codex-frosted-glass/
-├─ Codex-skinned.cmd     # 一键入口（双击）
-├─ inject.js             # 启动器 + CDP 注入
-├─ payload.js            # 渲染进程内执行：注入样式、建面板、打标
-├─ skin.css              # 全部玻璃样式（含可调变量）
-├─ cdp.js                # 极简 CDP 客户端（调试用）
-├─ capture.js            # 渲染进程内截图（不受窗口遮挡影响）
-├─ codex-skinned.ico     # 渐变底图标（16–256 六档）
-└─ docs/                 # 预览图
+├─ Codex-skinned.cmd      # 一键入口（双击）
+├─ inject.js              # 启动器 + CDP 注入
+├─ payload.js             # 渲染进程内执行：注入样式、建面板、打标
+├─ skin.css               # 全部玻璃样式（含可调变量）
+├─ cdp.js                 # 极简 CDP 客户端（调试用）
+├─ capture.js             # 渲染进程内截图（不受窗口遮挡影响）
+├─ Codex-skinned_icon.ico # 渐变底图标（16 / 24 / 32 / 48 / 64 / 128 / 256 七档）
+└─ docs/                  # 展示图 screenshot.jpg
 ```
 
 ## 卸载 / 还原
@@ -262,7 +257,7 @@ codex-frosted-glass/
 
 代码以 [MIT](LICENSE) 发布。
 
-- **Codex / ChatGPT 是 OpenAI 的商标**。`codex-skinned.ico` 中的白色标志取自本机已安装客户端的磁贴素材，仅用于标识被启动的应用，商标权归 OpenAI 所有。如权利人要求，可删除该文件，图标可自行替换。
+- **Codex / ChatGPT 是 OpenAI 的商标**。`Codex-skinned_icon.ico` 中的白色标志取自本机已安装客户端的磁贴素材，仅用于标识被启动的应用，商标权归 OpenAI 所有。如权利人要求，可删除该文件，图标可自行替换。
 - 本项目不包含、不分发 OpenAI 的任何程序代码，只在运行时读取本机已安装应用的渲染层。
 - 使用本项目的风险由使用者自行承担。
 

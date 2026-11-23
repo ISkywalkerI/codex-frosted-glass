@@ -13,12 +13,7 @@ No binary patching, no broken signatures, fully reversible — all styling is in
 
 **English** · [简体中文](README.md)
 
-![Main window](docs/preview-main.png)
-
-<p align="center">
-  <img src="docs/preview-picker.png" width="49%" alt="In-panel HSV colour wheel" />
-  <img src="docs/preview-transparent.png" width="49%" alt="High transparency" />
-</p>
+![Main window](docs/screenshot.jpg)
 
 ---
 
@@ -79,7 +74,7 @@ Verdict: **transparency only.** One less slider, one less filter, same look, zer
 
 ## Quick start
 
-**Option A — download the release** (no git needed): grab `codex-frosted-glass-v1.10.0.zip` from
+**Option A — download the release** (no git needed): grab `codex-frosted-glass-v1.10.1.zip` from
 [Releases](https://github.com/ISkywalkerI/codex-frosted-glass/releases/latest), extract it to a **permanent folder**, and double-click `Codex-skinned.cmd`.
 
 **Option B — clone**:
@@ -237,14 +232,14 @@ With no `backdrop-filter` at all, scrolling, window dragging and token streaming
 
 ```
 codex-frosted-glass/
-├─ Codex-skinned.cmd     # one-click entry
-├─ inject.js             # launcher + CDP injector
-├─ payload.js            # runs in the renderer: style, panel, tagging
-├─ skin.css              # all glass styling (with tunable variables)
-├─ cdp.js                # minimal CDP client (debugging)
-├─ capture.js            # in-renderer screenshot (ignores window occlusion)
-├─ codex-skinned.ico     # gradient icon, 16–256 px
-└─ docs/                 # preview images
+├─ Codex-skinned.cmd      # one-click entry
+├─ inject.js              # launcher + CDP injector
+├─ payload.js             # runs in the renderer: style, panel, tagging
+├─ skin.css               # all glass styling (with tunable variables)
+├─ cdp.js                 # minimal CDP client (debugging)
+├─ capture.js             # in-renderer screenshot (ignores window occlusion)
+├─ Codex-skinned_icon.ico # gradient icon, 16 / 24 / 32 / 48 / 64 / 128 / 256 px
+└─ docs/                  # screenshot.jpg
 ```
 
 ## Uninstall
@@ -259,6 +254,6 @@ Nothing is written to the registry, no autostart entry, no service. To verify: `
 
 Code released under the [MIT License](LICENSE).
 
-- **Codex and ChatGPT are trademarks of OpenAI.** The white mark in `codex-skinned.ico` is taken from the tile assets of the locally installed client and is used solely to identify the app it launches; all trademark rights remain with OpenAI. The file can be deleted on request from the rights holder, and the icon can be replaced.
+- **Codex and ChatGPT are trademarks of OpenAI.** The white mark in `Codex-skinned_icon.ico` is taken from the tile assets of the locally installed client and is used solely to identify the app it launches; all trademark rights remain with OpenAI. The file can be deleted on request from the rights holder, and the icon can be replaced.
 - This project contains and distributes no OpenAI program code; it only reads the renderer of the locally installed app at runtime.
 - Use at your own risk.
