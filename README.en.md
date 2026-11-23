@@ -19,6 +19,7 @@ No binary patching, no broken signatures, fully reversible — all styling is in
 
 ## Features
 
+- **Double-click entry** — `Codex-skinned.exe` ships with the icon embedded and no console window, so it can be pinned to Start or the taskbar
 - **Adjustable transparency** — drag a slider, the whole UI updates instantly, no reload
 - **Pick your own gradient** — an in-panel HSV wheel drives main light / secondary light / base colour; the other three glows and the glass tint are derived. Five presets, one click each
 - **Layered depth** — shell, composer, and sidebar use three different glass thicknesses
@@ -30,7 +31,7 @@ No binary patching, no broken signatures, fully reversible — all styling is in
 
 ```mermaid
 flowchart LR
-    A["Codex-skinned.cmd"] -->|"--remote-debugging-port=9335"| B["Codex main process"]
+    A["Codex-skinned.exe / .cmd"] -->|"--remote-debugging-port=9335"| B["Codex main process"]
     B --> C["Renderer<br/>Chromium"]
     A --> D["inject.js"]
     D -->|"HTTP /json/list"| C
@@ -71,11 +72,15 @@ Verdict: **transparency only.** One less slider, one less filter, same look, zer
 | Client | Codex desktop app (MSIX-packaged Electron, entry `ChatGPT.exe`) |
 | Runtime | Node.js ≥ 18 (no npm dependencies) |
 | Port | local `9335` (override with the `CDP_PORT` env var) |
+| Rebuilding the exe | Python 3.9+ with PyInstaller, only if you change the launcher |
 
 ## Quick start
 
-**Option A — download the release** (no git needed): grab `codex-frosted-glass-v1.10.1.zip` from
-[Releases](https://github.com/ISkywalkerI/codex-frosted-glass/releases/latest), extract it to a **permanent folder**, and double-click `Codex-skinned.cmd`.
+**Option A — download the release** (no git needed): grab `codex-frosted-glass-v1.11.0.zip` from
+[Releases](https://github.com/ISkywalkerI/codex-frosted-glass/releases/latest), extract it to a **permanent folder**, and double-click `Codex-skinned.exe`.
+
+> The first run triggers a **SmartScreen prompt** (the exe is not code-signed): More info → Run anyway.
+> `Codex-skinned.cmd` is still there — it keeps a console window, shows the full output, and is handy for debugging.
 
 **Option B — clone**:
 
@@ -91,7 +96,7 @@ The launcher adapts to the current state:
 |---|---|
 | Codex not running | Launches with the debug port → waits for the UI → injects → exits (~8–12 s) |
 | Skinned instance already running | Re-injects immediately, exits within a second |
-| Stock instance running (no port) | Asks whether to restart it; Enter to take over |
+| Stock instance running (no port) | Asks (in a dialog) whether to restart it; Yes takes over |
 | A long-running instance | Leaves it alone, tells you what to do |
 
 To get the **stock client**, just use Codex's own icon as usual. The two do not interfere.
@@ -104,6 +109,8 @@ node inject.js --once      # inject into the running instance only
 node inject.js --restart   # force restart, then inject
 node inject.js             # daemon mode: re-inject on reload/restart (stays resident)
 ```
+
+`Codex-skinned.exe` accepts the same flags and passes them straight through, e.g. `Codex-skinned.exe --restart`.
 
 ## Usage
 
@@ -207,6 +214,25 @@ Measured across all 22 Codex processes over a 20-second window:
 
 With no `backdrop-filter` at all, scrolling, window dragging and token streaming never re-blur anything — the main practical win of dropping blur in v1.9.
 
+### 6. The exe launcher
+
+`Codex-skinned.exe` is not a wrapper around the `.cmd` — it is a small standalone program (`launcher/launcher.py`, packed into a single file with PyInstaller):
+
+1. Locate `inject.js` (next to itself, then `CF_HOME`) and `node.exe` (`CF_NODE` → PATH → common install locations)
+2. Run `node inject.js --probe` and branch **purely on the exit code** — nothing is modified
+3. If Codex is running without the debug port, ask first in a dialog. A plain `.cmd` in a non-interactive context would just restart it and could throw away whatever you were typing
+4. Run `node inject.js --open` for real, writing output to a log instead of a console
+
+The probe exit codes are the contract between the launcher and `inject.js`:
+
+| Code | Meaning | Launcher behaviour |
+|---|---|---|
+| 0 | Debug port reachable | inject straight away |
+| 3 | Codex running, no port | ask, then add `--yes` |
+| 4 | Codex not running | launch and inject |
+
+The log lives at `%LOCALAPPDATA%\CodexSkinned\launcher.log` (overwritten each run); on failure its tail is shown in the dialog. The icon and version resource are written into the PE at build time, which is why it can be pinned to Start like a normal app — Windows treats `.cmd` as a document and offers no such option.
+
 ## Known limitations
 
 - **Reloading the page drops the skin.** Styles live in the current page, so a refresh or reopen loses them — double-click the entry again. Use daemon mode (`node inject.js`) to keep it alive automatically (about 57 MB resident)
@@ -215,6 +241,8 @@ With no `backdrop-filter` at all, scrolling, window dragging and token streaming
 - A major UI redesign may break the geometric tagging. The log then shows `composer× sidebar×`, and the thresholds in `payload.js` need a tweak
 - **An over-bright base colour is darkened automatically** (lightness capped at 30%), otherwise body text washes out. The hex box keeps what you typed; the colour chip shows the darkened result
 - **Editing `skin.css` / `payload.js` requires re-injection**: both are read into memory as strings when the injector starts
+- **The exe is unsigned**: expect a SmartScreen prompt on first run; a few AV engines false-positive on PyInstaller one-file builds — whitelist it, or use `Codex-skinned.cmd` / `node inject.js` instead
+- **The exe is 8.4 MB**: it bundles a Python runtime so double-clicking works on any machine; the skin itself is still a few dozen KB of CSS/JS
 
 ## Troubleshooting
 
@@ -227,18 +255,22 @@ With no `backdrop-filter` at all, scrolling, window dragging and token streaming
 | Broke after a Codex update | Class names or tokens changed; check the console log |
 | Colours changed but the backdrop did not | You edited `skin.css` / `payload.js` without re-running the entry point (styles are strings read at startup) |
 | Panel ends up off-screen | It is clamped by its real height automatically; drag it back if needed (the position is remembered) |
+| Double-clicking the exe does nothing, no dialog | Check `%LOCALAPPDATA%\CodexSkinned\launcher.log`; if there is no log either, security software blocked the exe |
+| "Windows protected your PC" | Normal for an unsigned exe: More info → Run anyway |
 
 ## Layout
 
 ```
 codex-frosted-glass/
-├─ Codex-skinned.cmd      # one-click entry
+├─ Codex-skinned.exe      # one-click entry (icon embedded, recommended)
+├─ Codex-skinned.cmd      # same thing, with a console window (debugging)
 ├─ inject.js              # launcher + CDP injector
 ├─ payload.js             # runs in the renderer: style, panel, tagging
 ├─ skin.css               # all glass styling (with tunable variables)
 ├─ cdp.js                 # minimal CDP client (debugging)
 ├─ capture.js             # in-renderer screenshot (ignores window occlusion)
 ├─ Codex-skinned_icon.ico # gradient icon, 16 / 24 / 32 / 48 / 64 / 128 / 256 px
+├─ launcher/              # launcher source and build script (launcher.py / version.txt / build.cmd)
 └─ docs/                  # screenshot.jpg
 ```
 

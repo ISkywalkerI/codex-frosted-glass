@@ -11,3 +11,7 @@ _gen/
 _dl/
 node_modules/
 dist/
+
+# exe 打包产物
+launcher/build/
+launcher/*.spec

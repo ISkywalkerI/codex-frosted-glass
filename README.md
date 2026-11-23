@@ -19,6 +19,7 @@
 
 ## 特性
 
+- **双击即用**：`Codex-skinned.exe` 图标已内嵌，没有控制台窗口，可以直接固定到开始屏幕 / 任务栏
 - **可调透明度**：右下角面板拖动滑块即刻生效，无需刷新
 - **渐变配色自选**：面板内 HSV 色环挑主光 / 副光 / 底色，其余 3 盏光晕与玻璃底色自动派生；5 套预设一键切换
 - **玻璃分层**：外壳、输入框、侧边栏三层不同厚度，形成前后关系
@@ -30,7 +31,7 @@
 
 ```mermaid
 flowchart LR
-    A["Codex-skinned.cmd"] -->|"--remote-debugging-port=9335"| B["Codex 主进程"]
+    A["Codex-skinned.exe / .cmd"] -->|"--remote-debugging-port=9335"| B["Codex 主进程"]
     B --> C["渲染进程<br/>Chromium"]
     A --> D["inject.js"]
     D -->|"HTTP /json/list"| C
@@ -70,11 +71,15 @@ Chromium 只在启动参数里带 `--remote-debugging-port` 时才开放调试�
 | 系统 | Windows 10 / 11 x64 |
 | 客户端 | Codex 桌面端（MSIX 打包的 Electron，入口 `ChatGPT.exe`） |
 | 运行时 | Node.js ≥ 18（无任何 npm 依赖） |
+| 重新打包 exe | 仅修改启动器后才需要 Python 3.9+ 与 PyInstaller（日常使用不需要） |
 | 端口 | 本地 `9335`（可用环境变量 `CDP_PORT` 改） |
 
 ## 快速开始
 
-**方式 A — 下载 Release**（不需要 git）：从 [Releases](https://github.com/ISkywalkerI/codex-frosted-glass/releases/latest) 下载 `codex-frosted-glass-v1.10.1.zip`，解压到**固定目录**，双击 `Codex-skinned.cmd`。
+**方式 A — 下载 Release**（不需要 git）：从 [Releases](https://github.com/ISkywalkerI/codex-frosted-glass/releases/latest) 下载 `codex-frosted-glass-v1.11.0.zip`，解压到**固定目录**，双击 `Codex-skinned.exe`。
+
+> 首次运行会有一次 **SmartScreen 提示**（exe 未做数字签名）：点「更多信息」→「仍要运行」即可。
+> `Codex-skinned.cmd` 保留着 —— 它带控制台窗口，能看到完整输出，适合排错。
 
 **方式 B — clone**：
 
@@ -85,7 +90,7 @@ git clone https://github.com/ISkywalkerI/codex-frosted-glass.git
 把文件夹放在**固定位置**（不要放在临时目录），然后双击：
 
 ```
-Codex-skinned.cmd
+Codex-skinned.exe
 ```
 
 它会根据当前状态自动处理：
@@ -94,7 +99,7 @@ Codex-skinned.cmd
 |---|---|
 | Codex 没运行 | 带调试端口启动 → 等界面加载 → 注入 → 退出（约 8–12 秒） |
 | 已开着皮肤版 | 立即重新注入，1 秒内退出 |
-| 开着原版（无端口） | 询问是否重启它，回车即接管 |
+| 开着原版（无端口） | 弹窗问是否重启它，选「是」即接管 |
 | 只有一个已经跑了很久的实例 | 不打断，提示你手动处理 |
 
 想用**原版**时，照常点 Codex 自己的图标即可，两者互不影响。
@@ -107,6 +112,8 @@ node inject.js --once      # 只注入当前实例，不启动
 node inject.js --restart   # 强制重启并注入
 node inject.js             # 守护模式：页面刷新/重启后自动重注入（常驻）
 ```
+
+`Codex-skinned.exe` 接受同样的参数并原样透传，例如 `Codex-skinned.exe --restart`。
 
 ## 使用
 
@@ -210,6 +217,25 @@ alpha = 1 - (t / 100) * 0.94      // t=0 → 1.0（不透明），t=100 → 0.06
 
 因为没有任何 `backdrop-filter`，滚动、拖窗口、AI 流式输出时**不需要每帧重新模糊**，这是 v1.9 砍掉模糊后最实在的收益。
 
+### 6. exe 启动器
+
+`Codex-skinned.exe` 不是把 `.cmd` 包了一层壳，而是一个独立程序（源码 `launcher/launcher.py`，用 PyInstaller 打成单文件）：
+
+1. 找 `inject.js`（先看自己所在目录，再看 `CF_HOME`）和 `node.exe`（`CF_NODE` → PATH → 常见安装位置）
+2. 跑 `node inject.js --probe`，**只看退出码**判断当前状态，不做任何改动
+3. Codex 在跑但没开调试端口时先弹窗问一句要不要重启 —— 普通 cmd 在非交互环境下会直接替你重启，可能弄丢正在输入的内容
+4. 真正执行 `node inject.js --open`，输出写进日志而不是控制台
+
+`--probe` 的退出码是启动器和 `inject.js` 之间的约定：
+
+| 退出码 | 含义 | 启动器行为 |
+|---|---|---|
+| 0 | 调试端口可用 | 直接注入 |
+| 3 | Codex 在跑但没开端口 | 弹窗确认，同意后加 `--yes` |
+| 4 | Codex 没在跑 | 直接启动并注入 |
+
+日志固定在 `%LOCALAPPDATA%\CodexSkinned\launcher.log`（每次运行覆盖），失败时日志尾部会直接显示在对话框里。图标和版本信息是打包时写进 PE 资源的，所以它能像正常应用一样固定到开始屏幕 —— `.cmd` 被系统归类为文档，没有这个选项。
+
 ## 已知限制
 
 - **页面重载会丢皮肤**。样式注入在当前页面，Codex 刷新或重开窗口后消失，再双击一次入口即可。想自动维持就用 `node inject.js`（守护模式，常驻约 57 MB 内存）
@@ -218,6 +244,8 @@ alpha = 1 - (t / 100) * 0.94      // t=0 → 1.0（不透明），t=100 → 0.06
 - 界面大改版后几何打标可能失配，日志里会显示 `输入框× 侧栏×`，需要调整 `payload.js` 的阈值
 - **底色选得过亮会被自动压暗**（亮度上限 30%），否则正文会糊在背景上。hex 框里仍显示你输入的原值，色靶显示的是压暗后的实际颜色
 - **改 `skin.css` / `payload.js` 后必须重新注入**：这两个文件是注入进程启动时读入的字符串，不重跑入口不会生效
+- **exe 没有数字签名**：首次运行会有 SmartScreen 提示；个别安全软件对 PyInstaller 单文件有误报，遇到就加白名单，或改用 `Codex-skinned.cmd` / `node inject.js`
+- **exe 有 8.4 MB**：为了在任何机器上双击即跑，它自带一份 Python 运行时；皮肤本身仍然只是几十 KB 的 CSS/JS
 
 ## 排错
 
@@ -230,18 +258,22 @@ alpha = 1 - (t / 100) * 0.94      // t=0 → 1.0（不透明），t=100 → 0.06
 | 换了颜色但背景没变 | 可能是改了 `skin.css` / `payload.js` 却没重新双击入口（样式是启动时读进内存的字符串） |
 | 面板跑到屏幕外 | 已按面板实际高度自动钳制；若仍越界，把它拖回窗口内即可（位置会被记住） |
 | 升级 Codex 后失效 | 类名/令牌可能变了，看控制台日志定位 |
+| 双击 exe 没反应也没弹窗 | 看 `%LOCALAPPDATA%\CodexSkinned\launcher.log`；日志也没有，多半是 exe 被安全软件拦了 |
+| 提示「Windows 已保护你的电脑」 | exe 未签名的正常提示：更多信息 → 仍要运行 |
 
 ## 目录结构
 
 ```
 codex-frosted-glass/
-├─ Codex-skinned.cmd      # 一键入口（双击）
+├─ Codex-skinned.exe      # 双击入口（图标已内嵌，推荐）
+├─ Codex-skinned.cmd      # 同上的控制台版本（排错用）
 ├─ inject.js              # 启动器 + CDP 注入
 ├─ payload.js             # 渲染进程内执行：注入样式、建面板、打标
 ├─ skin.css               # 全部玻璃样式（含可调变量）
 ├─ cdp.js                 # 极简 CDP 客户端（调试用）
 ├─ capture.js             # 渲染进程内截图（不受窗口遮挡影响）
 ├─ Codex-skinned_icon.ico # 渐变底图标（16 / 24 / 32 / 48 / 64 / 128 / 256 七档）
+├─ launcher/              # exe 的源码与打包脚本（launcher.py / version.txt / build.cmd）
 └─ docs/                  # 展示图 screenshot.jpg
 ```
 

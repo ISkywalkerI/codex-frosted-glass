@@ -29,7 +29,16 @@ const RESTART = argv.includes("--restart");
 const AUTOSTART = argv.includes("--autostart");
 const OPEN = argv.includes("--open"); // 双击入口：确保 Codex 以皮肤模式打开 + 注入一次，然后退出
 const YES = argv.includes("--yes"); // 免交互确认（自动化用）
+const PROBE = argv.includes("--probe"); // 只探测状态、不做任何改动（给 exe 启动器判断要不要弹窗）
 const GRACE_SEC = Number(process.env.CF_GRACE_SEC || 120);
+
+/* --probe 的退出码约定（launcher 依赖这三个值）：
+     0 = 调试端口可用（已有带皮肤的实例）
+     3 = Codex 在运行，但没带调试端口（需要用户同意才能重启）
+     4 = Codex 没在运行（可以直接启动） */
+const PROBE_PORT_OK = 0;
+const PROBE_RUNNING_NO_PORT = 3;
+const PROBE_NOT_RUNNING = 4;
 
 const log = (...a) => console.log(`[${new Date().toLocaleTimeString("zh-CN")}]`, ...a);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -242,6 +251,12 @@ async function injectTarget(t) {
 
 /* ---------- 主流程 ---------- */
 (async () => {
+  if (PROBE) {
+    const t = await listTargets();
+    if (t) process.exit(PROBE_PORT_OK);
+    process.exit(appProcesses() > 0 ? PROBE_RUNNING_NO_PORT : PROBE_NOT_RUNNING);
+  }
+
   if (!ONCE && !OPEN && !acquireLock()) {
     log("已有守护进程在运行，本实例直接退出（不会重复注入）。");
     process.exit(0);
