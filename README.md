@@ -58,6 +58,26 @@ Chromium 只在启动参数里带 `--remote-debugging-port` 时才开放调试�
 
 所以本项目的做法是：**在应用内部画一层氛围渐变当「玻璃后面的景」，再对它做真实模糊**。视觉上与磨砂玻璃一致，且完全可逆。
 
+### 为什么「玻璃后面的景」必须带细节
+
+模糊只会吃掉画面中的**高频信息**。如果背后只有一层平滑渐变，`blur(0px)` 和 `blur(60px)` 出来的是同一张图——滑块会像坏了一样。v1.7 就踩了这个坑：实测把模糊从 0 拉到 60，整屏平均像素差只有 **0.39%**。
+
+v1.8 把氛围层换成一张**四尺度散景图**（硬边光斑，运行时用 SVG 生成，随机种子固定所以每次启动画面一致）。因为不同尺度的特征会在不同模糊半径下消失，滑块全程都有可感知的反馈：
+
+| 尺度 | 数量 | 0 → 10px | 10 → 35px | 35 → 60px |
+|---|---|---|---|---|
+| 1–4px 尘埃光点 | 160 | 立即糊掉 | — | — |
+| 5–16px 小光斑 | 80 | 边缘变软 | 融进底色 | — |
+| 22–70px 中光斑 | 46 | 基本不变 | 边界消失 | — |
+| 90–210px 大光晕 | 16 | 基本不变 | 轮廓变淡 | 融成雾面 |
+
+<p>
+  <img src="docs/blur-min.png" width="49%" alt="模糊 0px：散景光斑边界清晰" />
+  <img src="docs/blur-max.png" width="49%" alt="模糊 60px：融合成平滑雾面" />
+</p>
+
+另外表面颗粒（`#cf-grain`）的浓度也跟随模糊值：`0.004 + blur × 0.0007`——玻璃越"粗糙"，散射颗粒越明显，这正是真实磨砂玻璃的表现。
+
 ## 环境要求
 
 | 项目 | 要求 |
@@ -69,7 +89,7 @@ Chromium 只在启动参数里带 `--remote-debugging-port` 时才开放调试�
 
 ## 快速开始
 
-**方式 A — 下载 Release**（不需要 git）：从 [Releases](https://github.com/ISkywalkerI/codex-frosted-glass/releases/latest) 下载 `codex-frosted-glass-v1.7.0.zip`，解压到**固定目录**，双击 `Codex-skinned.cmd`。
+**方式 A — 下载 Release**（不需要 git）：从 [Releases](https://github.com/ISkywalkerI/codex-frosted-glass/releases/latest) 下载 `codex-frosted-glass-v1.8.0.zip`，解压到**固定目录**，双击 `Codex-skinned.cmd`。
 
 **方式 B — clone**：
 

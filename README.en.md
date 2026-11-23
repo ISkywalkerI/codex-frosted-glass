@@ -58,6 +58,26 @@ The intuitive expectation is "blur my wallpaper behind the window". That is not 
 
 So this project takes the other route: **draw an ambience gradient inside the app as the "thing behind the glass", then blur that for real.** Visually identical to frosted glass, and completely reversible.
 
+### Why the backdrop needs actual detail
+
+Blur only removes **high-frequency information**. If the backdrop is nothing but smooth gradients, `blur(0px)` and `blur(60px)` render the same image — the slider looks broken. That was the v1.7 bug: dragging blur from 0 to 60 changed the screen by only **0.39%** on average.
+
+v1.8 replaces the backdrop with a **four-scale bokeh field** (hard-edged discs, generated as SVG at runtime with a fixed seed, so it looks the same on every launch). Each scale disappears at a different blur radius, so the whole slider range gives visible feedback:
+
+| Scale | Count | 0 → 10px | 10 → 35px | 35 → 60px |
+|---|---|---|---|---|
+| 1–4px dust specks | 160 | gone immediately | — | — |
+| 5–16px small discs | 80 | edges soften | merge into base | — |
+| 22–70px mid discs | 46 | unchanged | outlines gone | — |
+| 90–210px glows | 16 | unchanged | contours fade | melt into haze |
+
+<p>
+  <img src="docs/blur-min.png" width="49%" alt="blur 0px: crisp bokeh discs" />
+  <img src="docs/blur-max.png" width="49%" alt="blur 60px: smooth haze" />
+</p>
+
+The surface grain (`#cf-grain`) also scales with blur: `0.004 + blur × 0.0007`. The rougher the glass, the more visible the scattering — which is how real frosted glass behaves.
+
 ## Requirements
 
 | Item | Requirement |
@@ -69,7 +89,7 @@ So this project takes the other route: **draw an ambience gradient inside the ap
 
 ## Quick start
 
-**Option A — download the release** (no git needed): grab `codex-frosted-glass-v1.7.0.zip` from
+**Option A — download the release** (no git needed): grab `codex-frosted-glass-v1.8.0.zip` from
 [Releases](https://github.com/ISkywalkerI/codex-frosted-glass/releases/latest), extract it to a **permanent folder**, and double-click `Codex-skinned.cmd`.
 
 **Option B — clone**:
