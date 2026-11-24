@@ -109,15 +109,16 @@
   --app-color-background-elevated-secondary-opaque: color-mix(in srgb, #102435 calc(var(--cf-alpha) * 120%), transparent);
   --app-color-background-elevated-tertiary-opaque: color-mix(in srgb, rgb(16, 36, 53) calc(var(--cf-alpha) * 112%), transparent);
 
-  /* 输入框是唯一「边打字边读字」的表面，所以它不吃透明度滑块，固定 97%。
-     实测（透明度 100%，alpha 0.06）：底只有 7% 时，背后正文原样透过输入区，
-     和正在输入的字叠在一起，分不清哪行是自己的；86% 仍能读出背后的标题，
-     96% 只剩隐约横线，99% 才彻底干净。97% 是「基本干净、但看得出是块玻璃」的那一档。
+  /* 输入框是唯一「边打字边读字」的表面，所以它不吃上面那条总透明度，单独一个滑块控制。
+     浓度由 payload.js 写进 --cf-composer-mix（默认 97%）：0% 透明 = 100% 实底，
+     30% 透明 = 70% 实底。实测（面板透明度 100%、alpha 0.06 时）：
+     底只有 7% 时背后正文原样透过输入区，和正在输入的字叠在一起；
+     86% 仍能读出背后的标题，96% 只剩隐约横线，97% 是「看不见字句、但看得出是块玻璃」的临界点。
      而 backdrop-filter 在这台机器的 Electron 窗口里根本不生效（模糊加到 30px、
-     底降到 18%，背后文字照样笔画清晰），所以「靠模糊救可读性」这条路走不通。
+     底降到 18%，背后文字照样笔画清晰），所以「靠模糊救可读性」这条路走不通，只能靠不透明度。
      底色仍跟随配色：在底色上抬亮一档，像块更厚的玻璃。 */
   --cf-composer-ink: color-mix(in srgb, rgb(var(--cf-tint)) 58%, rgb(44, 68, 90));
-  --color-background-composer-surface: color-mix(in srgb, var(--cf-composer-ink) 97%, transparent);
+  --color-background-composer-surface: color-mix(in srgb, var(--cf-composer-ink) var(--cf-composer-mix, 97%), transparent);
   --color-background-composer-action-bar: color-mix(in srgb, #102435 calc(var(--cf-alpha) * 110%), transparent);
   --color-background-control-opaque: color-mix(in srgb, rgb(20, 40, 57) calc(var(--cf-alpha) * 118%), transparent);
 
@@ -150,15 +151,19 @@
     inset 0 0 0 1px rgba(255, 255, 255, 0.05);
 }
 
-/* 输入框：唯一一块「厚」玻璃 —— 97% 的底 + 顶部内高光 + 一圈外阴影，浮在正文之上。
-   底只有 7% 时，背后正文会原样透过输入区，和正在输入的字叠在一起（认不出哪行是自己的）；
-   97% 是这个尺寸下「看不见字句、但还看得出透明」的临界点，再透就会重新读出残影。
+/* 输入框：唯一一块「厚」玻璃 —— 可调的底（默认 97%）+ 顶部内高光 + 一圈外阴影，
+   浮在正文之上。底只有 7% 时，背后正文会原样透过输入区，和正在输入的字叠在一起
+   （认不出哪行是自己的）；97% 是这个尺寸下「看不见字句、但还看得出透明」的临界点。
    这里不加 backdrop-filter：实测这台机器的 Electron 窗口里它不生效（把模糊加到 30px、
    底降到 18%，背后文字依旧笔画清晰），靠模糊救可读性行不通，只有不透明度可靠。
    选择器用 class 前缀兜底：SPA 重渲染会换掉节点、打标可能暂时丢失，样式不能跟着丢。 */
 :root:not(.cf-off) [data-cf-composer],
 :root:not(.cf-off) [class*="ComposerLayoutRoot"] {
-  background-color: color-mix(in srgb, var(--cf-composer-ink) 97%, transparent) !important;
+  background-color: color-mix(
+    in srgb,
+    var(--cf-composer-ink) var(--cf-composer-mix, 97%),
+    transparent
+  ) !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.09),
     inset 0 0 0 1px rgba(255, 255, 255, 0.06),
@@ -347,6 +352,106 @@
   font-size: 10px;
   color: rgba(232, 238, 247, 0.4);
   letter-spacing: 0.01em;
+}
+
+/* 输入框滑块行：标签 + 滑杆 + 数值 + 问号 */
+#cf-panel .cf-row-c {
+  position: relative; /* 提示卡以这一行为定位基准 */
+  grid-template-columns: 40px 1fr 30px 15px;
+}
+
+#cf-panel .cf-help {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  border: 1px solid rgba(232, 238, 247, 0.28);
+  color: rgba(232, 238, 247, 0.55);
+  font-size: 9px;
+  line-height: 1;
+  cursor: help;
+  flex: none;
+}
+#cf-panel .cf-help:hover,
+#cf-panel .cf-help:focus-visible {
+  outline: none;
+  color: #fff;
+  border-color: rgba(232, 238, 247, 0.62);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* 提示卡：绝对定位盖在下方内容上 —— 往上或往左都会被面板的 overflow 裁掉 */
+#cf-panel .cf-tip {
+  position: absolute;
+  top: calc(100% + 7px);
+  right: 0;
+  z-index: 5;
+  width: 200px;
+  padding: 9px 10px 8px;
+  border-radius: 10px;
+  background: rgba(8, 15, 26, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.55);
+  color: rgba(232, 238, 247, 0.74);
+  font-size: 10px;
+  line-height: 1.45;
+  text-align: left;
+  opacity: 0;
+  transform: translateY(-4px);
+  pointer-events: none;
+  transition: opacity 130ms ease, transform 130ms ease;
+}
+#cf-panel .cf-tip.is-on {
+  opacity: 1;
+  transform: none;
+}
+#cf-panel .cf-tip b {
+  display: block;
+  margin-bottom: 5px;
+  text-align: left;
+  font-size: 10.5px;
+  color: rgba(232, 238, 247, 0.96);
+}
+#cf-panel .cf-tip-row {
+  display: flex;
+  gap: 7px;
+  margin-top: 3px;
+}
+#cf-panel .cf-tip-sub {
+  margin: -2px 0 6px;
+  color: rgba(232, 238, 247, 0.42);
+  font-size: 9.5px;
+}
+#cf-panel .cf-tip-row i {
+  flex: none;
+  width: 40px;
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  color: rgba(160, 200, 255, 0.88);
+}
+
+/* 皮肤关闭时的提示条：控件照常可点但完全没有效果，不提示会让人以为调色坏了 */
+#cf-panel .cf-offnote {
+  display: none;
+  margin: 0 0 9px;
+  padding: 6px 8px;
+  border-radius: 7px;
+  background: rgba(255, 196, 110, 0.13);
+  border: 1px solid rgba(255, 196, 110, 0.26);
+  color: #ffd7a1;
+  font-size: 10.5px;
+  line-height: 1.4;
+  letter-spacing: 0.01em;
+}
+#cf-panel.cf-off .cf-offnote {
+  display: block;
+}
+
+/* 关闭态：整块控件变灰且不可点。
+   以前色块 / 色轮 / hex 都照常响应，只是效果被 cf-off 吃掉，用户无法判断是调色坏了还是皮肤关了。 */
+#cf-panel.cf-off .cf-body {
+  opacity: 0.35;
+  filter: grayscale(0.5);
+  pointer-events: none;
 }
 
 /* ---------- 7. 调色板 ---------- */

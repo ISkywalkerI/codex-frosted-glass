@@ -5,15 +5,17 @@
    其余光晕与玻璃底色由主光/副光/底色派生。
    ============================================================ */
 
-const CF_VER = "1.12.4";
+const CF_VER = "1.13.0";
 const KEY = "cf-glass-v1";
 
 /* 3 个可调颜色的默认值 = v1.9.1 的硬编码观感 */
 const COLORS = { main: "#883ff1", alt: "#3566f0", base: "#0b1728" };
 
-/* hidden: 默认隐藏调节面板，按 Ctrl+Shift+G 调出（首次运行即隐藏） */
+/* hidden: 默认隐藏调节面板，按 Ctrl+Shift+G 调出（首次运行即隐藏）
+   ct: 输入框透明度%，0 = 实心，30 = 最透。默认 3（= 97% 的底，实测临界值） */
 const DEFAULTS = {
   t: 55,
+  ct: 3,
   on: true,
   collapsed: false,
   hidden: true,
@@ -48,11 +50,18 @@ const normHex = (v, d) => {
   if (/^#[0-9a-f]{3}$/i.test(t)) t = "#" + t[1] + t[1] + t[2] + t[2] + t[3] + t[3];
   return HEX6.test(t) ? t : d;
 };
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
 s.c = {
   main: normHex(s.c && s.c.main, COLORS.main),
   alt: normHex(s.c && s.c.alt, COLORS.alt),
   base: normHex(s.c && s.c.base, COLORS.base),
 };
+
+/* 输入框透明度：老存档里没有这个字段（或存了脏值），必须回落到默认 3，不能当 0 处理 ——
+   `+undefined` 是 NaN，一旦被写成 0 就等于「实心」，用户会以为新控件坏了。 */
+const ctRaw = Number(s.ct);
+s.ct = Number.isFinite(ctRaw) ? clamp(Math.round(ctRaw), 0, 30) : DEFAULTS.ct;
 
 const save = () => {
   try {
@@ -71,7 +80,6 @@ styleEl.textContent = CSS;
 
 /* ---------- 1.5 颜色：转换 / 派生 / 应用 ---------- */
 
-const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const r255 = (v) => Math.round(clamp(v, 0, 255));
 const join = (a) => a.map(r255).join(", ");
 
@@ -305,9 +313,26 @@ const HEAD_HTML = `
     <div class="cf-head">
       <span class="cf-dot"></span>
       <span class="cf-title">磨砂玻璃</span>
-      <button class="cf-power" title="开关 (Ctrl+Shift+G)">◐</button>
+      <button class="cf-power" title="开关皮肤" aria-label="开关皮肤">◐</button>
       <button class="cf-min" title="收起">–</button>
     </div>`;
+
+/* 「输入框」那一行 + 问号说明卡：面板里只此一份，老面板补控件时也复用 */
+const COMPOSER_ROW = `
+      <div class="cf-row cf-row-c">
+        <span>输入框</span>
+        <input class="cf-c" type="range" min="0" max="30" step="1" aria-label="输入框透明度">
+        <b class="cf-cv"></b>
+        <button class="cf-help" type="button" aria-label="输入框透明度取值说明">?</button>
+        <div class="cf-tip" role="tooltip">
+          <b>输入框透明度</b>
+          <div class="cf-tip-sub">0 = 实心，越大越透</div>
+          <div class="cf-tip-row"><i>0–3%</i><span>实心玻璃，背后看不见</span></div>
+          <div class="cf-tip-row"><i>4–8%</i><span>隐约见轮廓，读不出字</span></div>
+          <div class="cf-tip-row"><i>9–14%</i><span>看得出内容，开始干扰</span></div>
+          <div class="cf-tip-row"><i>15%+</i><span>正文透上来，不建议</span></div>
+        </div>
+      </div>`;
 
 const BODY_HTML = `
     <div class="cf-body">
@@ -316,6 +341,8 @@ const BODY_HTML = `
         <input class="cf-t" type="range" min="0" max="100" step="1">
         <b class="cf-tv"></b>
       </label>
+
+      ${COMPOSER_ROW}
 
       <div class="cf-presets" role="group" aria-label="配色预设">
         <span class="cf-preset" data-preset="aurora" role="button" tabindex="0" title="极光紫"></span>
@@ -372,6 +399,28 @@ panel.querySelectorAll(".cf-b").forEach((n) => n.closest(".cf-row")?.remove());
 const $ = (sel) => panel.querySelector(sel);
 const tInput = $(".cf-t");
 const tVal = $(".cf-tv");
+const cInputInit = $(".cf-c");
+
+/* 老面板（v1.12.4 及以前在本页注入过）没有「输入框」这一行：就地补。
+   同样是就地插入 —— 重建 .cf-body 会把已有控件连同监听一起换掉。 */
+if (!cInputInit) {
+  const presets = panel.querySelector(".cf-presets");
+  if (presets) presets.insertAdjacentHTML("beforebegin", COMPOSER_ROW);
+  else panel.querySelector(".cf-body")?.insertAdjacentHTML("afterbegin", COMPOSER_ROW);
+}
+
+/* 皮肤关闭时的提示条：色轮/色块照常可点但完全没效果，没有这条用户会以为调色坏了 */
+if (!panel.querySelector(".cf-offnote")) {
+  const OFF_HTML = `<div class="cf-offnote">皮肤已关闭 · 点 <b>◐</b> 重新打开</div>`;
+  const head = panel.querySelector(".cf-head");
+  if (head) head.insertAdjacentHTML("afterend", OFF_HTML);
+}
+
+/* 补完之后再取一次：老面板的这两个节点是刚插进去的 */
+const cInput = $(".cf-c");
+const cVal = $(".cf-cv");
+const helpBtn = $(".cf-help");
+const powerBtn = $(".cf-power");
 
 /* 老面板（v1.11 及以前在本页注入过）没有「重置配色」按钮：就地补一个。
    不重建整块 .cf-body —— 重建会把已有控件连同监听一起换掉，
@@ -397,6 +446,21 @@ const apply = () => {
   panel.classList.toggle("cf-hidden", !!s.hidden);
   tInput.value = s.t;
   tVal.textContent = s.t + "%";
+
+  // 输入框：0–30% 透明 → 100%–70% 的实底。用 CSS 变量传百分比，样式表里只写一处
+  const ctNum = Number(s.ct);
+  const ct = Number.isFinite(ctNum) ? clamp(Math.round(ctNum), 0, 30) : DEFAULTS.ct;
+  s.ct = ct;
+  html.style.setProperty("--cf-composer-mix", 100 - ct + "%");
+  if (cInput) cInput.value = ct;
+  if (cVal) cVal.textContent = ct + "%";
+
+  // ◐ 的文案必须说清它关的是什么：以前写「开关 (Ctrl+Shift+G)」，
+  // 用户会以为这是在调「显示」，其实把整层皮肤关掉了。
+  if (powerBtn) {
+    powerBtn.title = s.on ? "关闭皮肤 · 切回原版外观" : "打开皮肤 · 应用磨砂玻璃";
+    powerBtn.setAttribute("aria-pressed", s.on ? "true" : "false");
+  }
   if (s.x !== null && s.y !== null) {
     // 用面板实际尺寸钳制，保证整块面板都在窗口内（面板加高后旧坐标可能溢出）
     const maxX = Math.max(8, window.innerWidth - panel.offsetWidth - 8);
@@ -711,6 +775,50 @@ if (!window.__cfPanelBound) {
     true
   );
 }
+
+/* 输入框滑块 + 问号提示：单独守卫（可能本次才补进老面板），
+   不能依赖上面 __cfPanelBound 的主绑定块再跑一遍。 */
+const bindOnce = (el, fn) => {
+  if (!el || el.dataset.cfBound) return;
+  el.dataset.cfBound = "1";
+  fn();
+};
+
+bindOnce(cInput, () => {
+  cInput.addEventListener("input", () => {
+    s.ct = clamp(Math.round(+cInput.value), 0, 30);
+    apply();
+    scheduleSave();
+  });
+});
+
+/* 问号提示：hover / 键盘聚焦 / 点一下都能看。
+   绝对定位盖在下方内容之上（往左或往上都会被面板的 overflow 裁掉）。 */
+(() => {
+  const tip = panel.querySelector(".cf-tip");
+  if (!helpBtn || !tip) return;
+  const show = () => {
+    tip.classList.add("is-on");
+    helpBtn.setAttribute("aria-expanded", "true");
+  };
+  const hide = () => {
+    tip.classList.remove("is-on");
+    helpBtn.setAttribute("aria-expanded", "false");
+  };
+  bindOnce(helpBtn, () => {
+    helpBtn.setAttribute("aria-expanded", "false");
+    helpBtn.addEventListener("pointerenter", show);
+    helpBtn.addEventListener("pointerleave", hide);
+    helpBtn.addEventListener("focus", show);
+    helpBtn.addEventListener("blur", hide);
+    // 触屏没有 hover：点一下切换
+    helpBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      if (tip.classList.contains("is-on")) hide();
+      else show();
+    });
+  });
+})();
 
 /* 重置配色：单独守卫，因为按钮可能是本次才补进老面板的，
    不能依赖上面 __cfPanelBound 的主绑定块再跑一遍。 */

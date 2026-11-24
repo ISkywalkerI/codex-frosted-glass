@@ -22,7 +22,7 @@ No binary patching, no broken signatures, fully reversible — all styling is in
 - **Double-click entry, two flavours** — `Codex-skinned.exe` ships with the icon embedded and no console window, so it can be pinned to Start or the taskbar; switch to `Codex-skinned.cmd` when you want the full output
 - **Adjustable transparency** — drag a slider, the whole UI updates instantly, no reload
 - **Pick your own gradient** — an in-panel HSV wheel drives main light / secondary light / base colour; the other three glows and the glass tint are derived. Five presets, one click each, plus a reset when you want the default back
-- **Layered depth** — shell, composer, and sidebar use three different glass thicknesses; the composer stays at a fixed 97% so the transcript never shows through while you type
+- **Layered depth** — shell, composer, and sidebar use three different glass thicknesses; the composer has its own transparency slider (0–30%, default 3%) so the transcript stays out of the way while you type
 - **Zero background processes** — double-click, launch + inject, exit. Nothing idles afterwards
 - **Reversible** — toggle the `◐` button (or the `cf-off` class on `<html>`) to switch back to stock
 - **Non-invasive** — no registry writes, no autostart, no services, no telemetry
@@ -76,7 +76,7 @@ Verdict: **transparency only.** One less slider, one less filter, same look, zer
 
 ## Quick start
 
-**① Download the release** (no git needed): grab `codex-frosted-glass-v1.12.4.zip` from
+**① Download the release** (no git needed): grab `codex-frosted-glass-v1.13.0.zip` from
 [Releases](https://github.com/ISkywalkerI/codex-frosted-glass/releases/latest) and extract it to a **permanent folder**.
 
 **② Clone the repo** (if you want to tweak or track updates):
@@ -130,19 +130,20 @@ The panel is **hidden by default** so it never covers the UI. Press `Ctrl + Shif
 
 | Action | Effect |
 |---|---|
-| Drag **Transparency** | 0% fully opaque → 100% almost fully transparent |
+| Drag **Transparency** | Overall opacity of the shell and panels: 0% fully opaque → 100% almost fully transparent (the composer has its own slider) |
+| Drag **Composer** | How solid the input box is: 0% solid → 30% clearest, default 3% (≈97% base). The `?` next to it lists what each band looks like on hover / keyboard focus |
 | Click one of the 5 presets | Swap the whole palette in one click (Aurora / Ocean / Sunset / Forest / Slate) |
 | Click **main / alt / base** | Choose which colour the wheel edits |
 | Drag the hue ring | Change hue (the ring knob follows) |
 | Drag the inner square | Change saturation (horizontal) and value (vertical) |
 | hex box / R G B boxes | Type exact values; an over-bright base colour is darkened automatically for legibility |
 | Drag the title bar | Move the panel (position is remembered) |
-| `◐` | Toggle the skin (turning it off restores the stock look instantly) |
+| `◐` | Toggle the skin (turning it off restores the stock look instantly). Its tooltip spells out "Turn off the skin · back to the stock look" / "Turn on the skin · apply the frosted glass"; while off, an amber banner sits at the top of the panel and the colour controls below are dimmed and unclickable |
 | `–` | Collapse / expand the panel |
 | **Reset colours** | Return all three colours to the default Aurora in one click (transparency untouched); the button greys out when you are already on the defaults |
 | `Ctrl + Shift + G` | Show / hide the panel (hidden by default; a 5-second hint appears on every launch) |
 
-Settings live in `localStorage["cf-glass-v1"]`; the defaults are `55% transparency` and the Aurora palette (`#883ff1` · `#3566f0` · `#0b1728`, i.e. the v1.9 look).
+Settings live in `localStorage["cf-glass-v1"]`; the defaults are `55% transparency`, `3% composer transparency` and the Aurora palette (`#883ff1` · `#3566f0` · `#0b1728`, i.e. the v1.9 look).
 
 **Changes save themselves.** Releasing the wheel (or clicking a preset) writes to `localStorage` straight away — there is no save button. Quit Codex, launch it skinned again, and your last transparency and palette are still there. A page reload drops the skin (see Known limitations), but one more double-click brings your own colours back.
 
@@ -176,23 +177,23 @@ So the rule is: **background tokens may be made translucent, foreground tokens m
 }
 ```
 
-**Second trap: `backdrop-filter` is inert in this window.** Adding a 26px backdrop blur to the composer changed nothing; in a controlled test (base down to 18%, blur up to 30px) the transcript behind it stayed pixel-crisp. So blur cannot rescue legibility here — only opacity can. Dropping blur in v1.9 was the right call, but without it "glassy" and "readable" are a straight trade-off, so the composer resolves it with opacity (97%).
+**Second trap: `backdrop-filter` is inert in this window.** Adding a 26px backdrop blur to the composer changed nothing; in a controlled test (base down to 18%, blur up to 30px) the transcript behind it stayed pixel-crisp. So blur cannot rescue legibility here — only opacity can. Dropping blur in v1.9 was the right call, but without it "glassy" and "readable" are a straight trade-off, so the composer resolves it with opacity (default 3% ≈ a 97% base, adjustable in the panel).
 
 ### 2. Three thicknesses
 
 | Layer | Treatment |
 |---|---|
 | Shell `#root` | base colour at 0.62 alpha — one sheet of glass across the window, plus a 1px inner top highlight |
-| Composer | **fixed 97% base** (ignores the transparency slider) + 1px top inner highlight + drop shadow — a thick pane sitting on top of the transcript |
+| Composer | **its own 0–30% transparency** (default 3%, i.e. a 97% base) + 1px top inner highlight + drop shadow — a thick pane sitting on top of the transcript |
 | Sidebar | 1px right edge highlight; thinner and more transparent than the shell |
 
-The composer is the one surface where you type *and* read at once, so it opts out of the slider and sits at a fixed 97%. At `transparency 100%` (alpha 0.06) a 7%-opaque base let the transcript bleed straight through the input area and interleave with what you were typing. Measured on a real window: 86% still left the background heading readable, 96% left faint lines, 99% was finally clean — 97% is the point where the words are gone but you can still tell it is a pane of glass. The glass read is carried by the inner highlight, the bright edge and the shadow.
+The composer is the one surface where you type *and* read at once, so it does not follow the global slider — it has its own (default 3% ≈ a 97% base, with a `?` tooltip in the panel explaining each band). At `transparency 100%` (alpha 0.06) a 7%-opaque base let the transcript bleed straight through the input area and interleave with what you were typing. Measured on a real window: 86% still left the background heading readable, 96% left faint lines, 99% was finally clean — 97% is the point where the words are gone but you can still tell it is a pane of glass. The glass read is carried by the inner highlight, the bright edge and the shadow.
 
 ### 3. Geometric tagging instead of class names
 
 Codex uses hashed class names (`ComposerLayoutBody-uBBf1A`) that change on every release, so elements are located by shape:
 
-- **Composer**: climb up to 7 levels from `textarea` / `contenteditable`, take the first ancestor with `radius ≥ 8px, width ≥ 220, height ≥ 36`
+- **Composer**: climb up to 9 levels from `textarea` / `contenteditable`, take the first ancestor with `radius ≥ 8px, width ≥ 220, height ≥ 36` — the composer root sits exactly 7 levels up and the old loop stopped at `hop < 7`, so it never matched
 - **Sidebar**: inside `#root`, find the element with `left ≤ 4px, height ≥ 82% viewport, width between 180 and min(520, 42% viewport)`
 
 ### 4. The maths
@@ -201,7 +202,7 @@ Codex uses hashed class names (`ComposerLayoutBody-uBBf1A`) that change on every
 alpha = 1 - (t / 100) * 0.94      // t=0 → 1.0 (opaque), t=100 → 0.06
 ```
 
-All `color-mix` values reference it, so changing it forces a single style recalculation — which is why dragging feels instant. The one exception is the composer base, which is deliberately opaque (see "Three thicknesses").
+All `color-mix` values reference it, so changing it forces a single style recalculation — which is why dragging feels instant. The composer base runs on a second channel: its slider value becomes `--cf-composer-mix` (100% − transparency), referenced by the two `background-color` rules, so that slider is live too.
 
 ### 5. Gradient parameterisation and colour derivation
 
@@ -294,7 +295,7 @@ The log lives at `%LOCALAPPDATA%\CodexSkinned\launcher.log` (overwritten each ru
 | Double-clicking the exe does nothing, no dialog | Check `%LOCALAPPDATA%\CodexSkinned\launcher.log`; if there is no log either, security software blocked the exe |
 | "Windows protected your PC" | Normal for an unsigned exe: More info → Run anyway |
 | The send button is a blank white circle, arrow invisible | A foreground token got the translucent background treatment (see Implementation notes §1); fixed in v1.12.2 — update |
-| Typed text and the transcript behind the input box blur together | Since v1.12.3 the composer sits at a fixed 97% and no longer follows the slider — update |
+| Typed text and the transcript behind the input box blur together | Drag the **Composer** slider down (0–3% hides it, 9%+ starts showing through). Older builds have no such slider — update to v1.13.0 |
 
 ## Layout
 
