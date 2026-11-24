@@ -76,7 +76,7 @@ Chromium 只在启动参数里带 `--remote-debugging-port` 时才开放调试�
 
 ## 快速开始
 
-**① 下载 Release**（不需要 git）：从 [Releases](https://github.com/ISkywalkerI/codex-frosted-glass/releases/latest) 下载 `codex-frosted-glass-v1.12.1.zip`，解压到**固定目录**。
+**① 下载 Release**（不需要 git）：从 [Releases](https://github.com/ISkywalkerI/codex-frosted-glass/releases/latest) 下载 `codex-frosted-glass-v1.12.2.zip`，解压到**固定目录**。
 
 **② clone 仓库**（想改代码或跟更新）：
 
@@ -163,6 +163,17 @@ Codex 的界面几乎完全由 CSS 变量驱动，所以不去逐个挑 DOM 节�
 ```
 
 一次改动，所有引用这些令牌的面板同时变成半透明。共处理了 20 多个令牌（`--color-surface*`、`--app-color-background-*`、`--app-shell-*` 等）。
+
+**有个坑值得单独说**：Codex 会把**前景色**别名到某个背景令牌上 —— `--color-text-composer-primary` 与 `--color-text-primary-solid` 都指向 `--color-background-control-opaque`。这个「控件底色」一旦被改成 7% 透明，浅色发送键上的箭头也跟着透明，整颗按钮看起来就是**全白**的（v1.12.2 及以前的 bug）。
+
+所以规则是：**背景令牌可以透明化，前景令牌不行**。这两个前景令牌在深色主题里的原始值就是 `#0b1728`，skin.css 里单独钉回去；用同一令牌当背景的 70 多个控件（下拉菜单、气泡等）仍然保持半透明，玻璃感不受影响：
+
+```css
+:root:not(.cf-off) {
+  --color-text-composer-primary: #0b1728;
+  --color-text-primary-solid: #0b1728;
+}
+```
 
 ### 2. 三层厚度
 
@@ -277,6 +288,7 @@ alpha = 1 - (t / 100) * 0.94      // t=0 → 1.0（不透明），t=100 → 0.06
 | 升级 Codex 后失效 | 类名/令牌可能变了，看控制台日志定位 |
 | 双击 exe 没反应也没弹窗 | 看 `%LOCALAPPDATA%\CodexSkinned\launcher.log`；日志也没有，多半是 exe 被安全软件拦了 |
 | 提示「Windows 已保护你的电脑」 | exe 未签名的正常提示：更多信息 → 仍要运行 |
+| 发送键变成一颗「全白」的圆、箭头看不见 | 前景令牌被当背景令牌透明化了（详见「实现细节 1」）；v1.12.2 已修，旧版更新即可 |
 
 ## 目录结构
 

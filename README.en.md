@@ -76,7 +76,7 @@ Verdict: **transparency only.** One less slider, one less filter, same look, zer
 
 ## Quick start
 
-**① Download the release** (no git needed): grab `codex-frosted-glass-v1.12.1.zip` from
+**① Download the release** (no git needed): grab `codex-frosted-glass-v1.12.2.zip` from
 [Releases](https://github.com/ISkywalkerI/codex-frosted-glass/releases/latest) and extract it to a **permanent folder**.
 
 **② Clone the repo** (if you want to tweak or track updates):
@@ -164,6 +164,17 @@ Codex's UI is almost entirely driven by CSS variables, so instead of walking the
 ```
 
 One change and every panel referencing those tokens becomes translucent. Over 20 tokens are handled (`--color-surface*`, `--app-color-background-*`, `--app-shell-*`, …).
+
+**One trap is worth calling out.** Codex aliases some *foreground* tokens onto a *background* token: both `--color-text-composer-primary` and `--color-text-primary-solid` resolve to `--color-background-control-opaque`. Make that "control surface" 7% transparent and the arrow on the light send button turns transparent with it — the button reads as a **blank white circle** (the bug in v1.12.2 and earlier).
+
+So the rule is: **background tokens may be made translucent, foreground tokens may not.** Both foreground tokens are `#0b1728` in the dark theme, so they are pinned back in `skin.css`, while the 70-odd controls that use the same token *as a background* (dropdowns, popovers) stay translucent:
+
+```css
+:root:not(.cf-off) {
+  --color-text-composer-primary: #0b1728;
+  --color-text-primary-solid: #0b1728;
+}
+```
 
 ### 2. Three thicknesses
 
@@ -278,6 +289,7 @@ The log lives at `%LOCALAPPDATA%\CodexSkinned\launcher.log` (overwritten each ru
 | Panel ends up off-screen | It is clamped by its real height automatically; drag it back if needed (the position is remembered) |
 | Double-clicking the exe does nothing, no dialog | Check `%LOCALAPPDATA%\CodexSkinned\launcher.log`; if there is no log either, security software blocked the exe |
 | "Windows protected your PC" | Normal for an unsigned exe: More info → Run anyway |
+| The send button is a blank white circle, arrow invisible | A foreground token got the translucent background treatment (see Implementation notes §1); fixed in v1.12.2 — update |
 
 ## Layout
 

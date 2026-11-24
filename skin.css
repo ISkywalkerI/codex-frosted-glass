@@ -156,6 +156,19 @@
   box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.045);
 }
 
+/* 浅色实心控件上的前景色（发送键箭头、跳转到内容等）。
+   Codex 把 --color-text-composer-primary / --color-text-primary-solid 别名到了
+   --color-background-control-opaque 这个"控件底色"令牌上，而该底色我们在上面按
+   玻璃感改成了 7% 透明的深色 —— 前景色跟着透明，浅色圆钮上的箭头就消失了，
+   视觉上是一颗"全白"按钮（历史上连"跳转到内容"这类按钮也一起中招）。
+
+   前景色不该参与透明化。两个令牌在深色主题里的原始值就是 #0b1728，这里钉回去；
+   用同一令牌当背景的那 70 多个控件仍保持半透明，玻璃感不受影响。 */
+:root:not(.cf-off) {
+  --color-text-composer-primary: #0b1728;
+  --color-text-primary-solid: #0b1728;
+}
+
 /* ---------- 6. 控制面板 ---------- */
 #cf-panel {
   position: fixed;
