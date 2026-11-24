@@ -22,7 +22,8 @@ No binary patching, no broken signatures, fully reversible — all styling is in
 - **Double-click entry, two flavours** — `Codex-skinned.exe` ships with the icon embedded and no console window, so it can be pinned to Start or the taskbar; switch to `Codex-skinned.cmd` when you want the full output
 - **Adjustable transparency** — drag a slider, the whole UI updates instantly, no reload
 - **Pick your own gradient** — an in-panel HSV wheel drives main light / secondary light / base colour; the other three glows and the glass tint are derived. Five presets, one click each, plus a reset when you want the default back
-- **Layered depth** — shell, composer, and sidebar use three different glass thicknesses; the composer has its own transparency slider (0–30%, default 3%) so the transcript stays out of the way while you type
+- **Layered depth** — shell, composer, sidebar and pop-up menus use four different glass thicknesses; the composer has its own transparency slider (0–30%, default 3%) so the transcript stays out of the way while you type
+- **Menus are glass too** — context menus, `⋯` menus and dropdowns get an 18px backdrop blur over a thin base, matching the account menu instead of dropping bare text on top of sidebar text
 - **Zero background processes** — double-click, launch + inject, exit. Nothing idles afterwards
 - **Reversible** — toggle the `◐` button (or the `cf-off` class on `<html>`) to switch back to stock
 - **Non-invasive** — no registry writes, no autostart, no services, no telemetry
@@ -52,17 +53,20 @@ The intuitive expectation is "blur my wallpaper behind the window". That is not 
 - I tested Windows 10's DWM acrylic (`SetWindowCompositionAttribute` — the call even reports success): **the blur does not penetrate an opaque Electron window**, the surface stays flat
 - The only real fix is repacking `app.asar` to change the window flags, which breaks MSIX signing and auto-update — not worth it
 
-So this project only does **transparency**: draw a smooth ambient gradient inside the app as the base colour, then swap the "solid surface" tokens for translucent `color-mix` values. No blur anywhere, fully reversible.
+So the window itself only does **transparency**: draw a smooth ambient gradient inside the app as the base colour, then swap the "solid surface" tokens for translucent `color-mix` values. Blur is reserved for top-layer menus, where there is real content behind the glass (see below); the window body carries no filter at all and stays fully reversible.
 
-### Why there is no blur
+### Where blur is used, and where it is not
 
-v1.7 and v1.8 tried adding `backdrop-filter: blur()`. It was **removed in v1.9**, for three blunt reasons:
+v1.7 / v1.8 added `backdrop-filter: blur()` to the window and the composer; v1.9 **removed it**, because there is nothing behind the glass to blur — the backdrop is a smooth gradient we draw ourselves, and blur only removes high-frequency detail. Dragging blur from 0 to 60 changed the screen by **0.39%** on average. (v1.8 stuffed a multi-scale bokeh field behind the glass to give blur something to chew on: an extra DOM layer, an extra SVG and a full-window GPU blur, all to feed a parameter that should not exist.)
 
-- **There is nothing behind the glass to blur.** The backdrop is a smooth gradient drawn by us, and blur only removes high-frequency detail — dragging blur from 0 to 60 changed the screen by **0.39%** on average. The slider was effectively dead.
-- **The only fix was to fake it.** v1.8 stuffed a multi-scale bokeh field behind the glass so blur would have something to chew on. That meant an extra DOM layer, an extra SVG, and a full-window GPU blur — all to feed a parameter that should not exist.
-- **Real desktop-through blur is impossible on Windows 10** (see above), and a full-window `blur(38px)` is exactly the most expensive thing you can do while scrolling or streaming tokens.
+One class of surface is the exception: **top-layer pop-up menus**. They sit on top of real content (the conversation list, the transcript), which is full of high-frequency detail — and Codex itself already uses `backdrop-filter` on that layer. The account menu is `blur(8px)`, which is exactly why it reads as the most "frosted" surface in the app. So since v1.13.3:
 
-Verdict: **transparency only.** One less slider, one less filter, same look, zero cost.
+| Surface | What is behind it | Treatment |
+|---|---|---|
+| Shell / sidebar / composer | our own smooth gradient (no high frequencies) | opacity + inner highlight + shadow only |
+| Menus / context menus / dropdowns | real content (columns of text) | thin base + `backdrop-filter: blur(18px)` |
+
+The rule is not "never blur" but **don't blur where there is nothing to blur, and do blur where there is**. A full-window `blur(38px)` remains the most expensive thing you can do while scrolling or streaming tokens — that one stays out.
 
 ## Requirements
 
@@ -76,7 +80,7 @@ Verdict: **transparency only.** One less slider, one less filter, same look, zer
 
 ## Quick start
 
-**① Download the release** (no git needed): grab `codex-frosted-glass-v1.13.2.zip` from
+**① Download the release** (no git needed): grab `codex-frosted-glass-v1.13.3.zip` from
 [Releases](https://github.com/ISkywalkerI/codex-frosted-glass/releases/latest) and extract it to a **permanent folder**.
 
 **② Clone the repo** (if you want to tweak or track updates):
@@ -177,15 +181,16 @@ So the rule is: **background tokens may be made translucent, foreground tokens m
 }
 ```
 
-**Second trap: `backdrop-filter` is inert in this window.** Adding a 26px backdrop blur to the composer changed nothing; in a controlled test (base down to 18%, blur up to 30px) the transcript behind it stayed pixel-crisp. So blur cannot rescue legibility here — only opacity can. Dropping blur in v1.9 was the right call, but without it "glassy" and "readable" are a straight trade-off, so the composer resolves it with opacity (default 3% ≈ a 97% base, adjustable in the panel).
+**Second trap: `backdrop-filter` does not work everywhere.** A 26px backdrop blur on the composer changed nothing; in a controlled test (base down to 18%, blur up to 30px) the transcript behind it stayed pixel-crisp — on the composer node, blur cannot rescue legibility, only opacity can. **But it does work on top-layer menus:** remove the `backdrop-filter` from an open menu and capture the same frame, and "smeared into a wash" turns straight back into "clearly readable". That is why v1.13.3 uses a thin base + blur for menus, while the composer still relies on opacity alone.
 
-### 2. Three thicknesses
+### 2. Layered thicknesses
 
 | Layer | Treatment |
 |---|---|
 | Shell `#root` | base colour at 0.62 alpha — one sheet of glass across the window, plus a 1px inner top highlight |
 | Composer | **its own 0–30% transparency** (default 3%, i.e. a 97% base) + 1px top inner highlight + drop shadow — a thick pane sitting on top of the transcript |
 | Sidebar | 1px right edge highlight; thinner and more transparent than the shell |
+| Pop-up menus | thin base (`max(22%, alpha × 1.6)`) + `backdrop-filter: blur(18px)` + 1px inner ring + shadow — the same sheet of glass as the account menu |
 
 The composer is the one surface where you type *and* read at once, so it does not follow the global slider — it has its own (default 3% ≈ a 97% base, with a `?` tooltip in the panel explaining each band). At `transparency 100%` (alpha 0.06) a 7%-opaque base let the transcript bleed straight through the input area and interleave with what you were typing. Measured on a real window: 86% still left the background heading readable, 96% left faint lines, 99% was finally clean — 97% is the point where the words are gone but you can still tell it is a pane of glass. The glass read is carried by the inner highlight, the bright edge and the shadow.
 
@@ -249,7 +254,7 @@ Measured across all 22 Codex processes over a 20-second window:
 | Skin on | 0.16% | **identical** — nothing repaints while idle; picking a colour just writes 10 CSS variables on click/drag |
 | Injector | a few seconds after double-click | exits when done; 0% otherwise |
 
-With no `backdrop-filter` at all, scrolling, window dragging and token streaming never re-blur anything — the main practical win of dropping blur in v1.9.
+The window body carries no `backdrop-filter` at all, so scrolling, window dragging and token streaming never re-blur anything — the main practical win of dropping blur in v1.9. The only blurred surface left is a pop-up menu, which exists for the few seconds it is open, covers a small area and never sits in the scrolling hot path.
 
 ### 6. The exe launcher
 

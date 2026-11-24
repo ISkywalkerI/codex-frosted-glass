@@ -118,6 +118,8 @@
      底降到 18%，背后文字照样笔画清晰），所以「靠模糊救可读性」这条路走不通，只能靠不透明度。
      底色仍跟随配色：在底色上抬亮一档，像块更厚的玻璃。 */
   --cf-composer-ink: color-mix(in srgb, rgb(var(--cf-tint)) 58%, rgb(44, 68, 90));
+  /* 菜单/右键菜单的底：比输入框薄一档（能看见背后被糊掉的内容），但仍明显是一块面 */
+  --cf-menu-ink: color-mix(in srgb, rgb(var(--cf-tint)) 55%, rgb(38, 60, 82));
   --color-background-composer-surface: color-mix(in srgb, var(--cf-composer-ink) var(--cf-composer-mix, 97%), transparent);
   --color-background-composer-action-bar: color-mix(in srgb, #102435 calc(var(--cf-alpha) * 110%), transparent);
   --color-background-control-opaque: color-mix(in srgb, rgb(20, 40, 57) calc(var(--cf-alpha) * 118%), transparent);
@@ -154,8 +156,9 @@
 /* 输入框：唯一一块「厚」玻璃 —— 可调的底（默认 97%）+ 顶部内高光 + 一圈外阴影，
    浮在正文之上。底只有 7% 时，背后正文会原样透过输入区，和正在输入的字叠在一起
    （认不出哪行是自己的）；97% 是这个尺寸下「看不见字句、但还看得出透明」的临界点。
-   这里不加 backdrop-filter：实测这台机器的 Electron 窗口里它不生效（把模糊加到 30px、
-   底降到 18%，背后文字依旧笔画清晰），靠模糊救可读性行不通，只有不透明度可靠。
+   这里不加 backdrop-filter：当初把模糊加到 30px、底降到 18%，背后正文依旧笔画清晰，
+   靠模糊救可读性行不通，只有不透明度可靠。（模糊在顶层弹出的菜单里是有效的 —— 见下方
+   [data-native-menu-surface] 那条 —— 但输入框这个节点上没观察到效果。）
 
    只认 [data-cf-composer]（payload.js 按几何条件打标出来的那个圆角容器）。
    曾经还并列写了一条 [class*="ComposerLayoutRoot"] 兜底，结果新聊天（欢迎页）翻车：
@@ -179,6 +182,34 @@
 /* 侧边栏：更薄更通透，右侧一条 1px 亮边分隔 */
 :root:not(.cf-off) [data-cf-sidebar] {
   box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.045);
+}
+
+/* ---------- 5.1 弹出菜单：右键菜单 / ⋯ 菜单 / 下拉 —— 和头像菜单同一层玻璃 ----------
+
+   Codex 的菜单面板带 data-native-menu-surface（顶点弹出的那一层），底走
+   bg-surface-elevated-secondary，浓度跟着 --cf-alpha 走 —— 调到默认 93% 透明时
+   只剩 7%，等于没有底：菜单项直接压在侧栏标题上，看的是一堆文字叠文字。
+   （头像菜单之所以好看，是因为它自带 backdrop-filter: blur(8px)，底再薄也糊得开。）
+
+   这里补的就是这一步：同一层玻璃 = 一点底色 + 真模糊 + 一圈内描边 + 投影。
+   backdrop-filter 在顶层弹层里是有效的（和输入框不同），所以菜单可以放心用模糊，
+   底色就能压得很薄，透出背后"糊成一片"的内容而不是清晰可读的字。
+
+   浓度取 max(22%, --cf-alpha × 160%)：
+   - 默认的高透明档（alpha 0.06）落在 22%，比头像菜单的 6% 略厚一点，压得住密集列表；
+   - 用户把透明度调低时跟着变厚，alpha 1 时封顶实心，不会出现"整窗变实、菜单还透"的割裂。 */
+:root:not(.cf-off) [data-native-menu-surface] {
+  background-color: color-mix(
+    in srgb,
+    var(--cf-menu-ink) calc(max(22%, var(--cf-alpha) * 160%)),
+    transparent
+  ) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.06);
+  backdrop-filter: blur(18px) saturate(1.06);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.07),
+    0 16px 40px rgba(0, 0, 0, 0.4) !important;
 }
 
 /* 浅色实心控件上的前景色（发送键箭头、跳转到内容等）。
