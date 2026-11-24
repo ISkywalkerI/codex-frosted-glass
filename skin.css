@@ -725,3 +725,372 @@
     background-color: rgba(9, 20, 34, 0.9) !important;
   }
 }
+
+/* ============================================================
+   8. 浅色模式（日间）
+   ============================================================
+
+   这一整段是**追加式覆盖**：上面 727 行一个字符都没动，深色路径仍然走原来的声明，
+   `.cf-off` 仍然逐条生效。浅色的开关只有一个 class —— `<html class="cf-light">`，
+   由 payload.js 的 syncTheme() 挂上。
+
+   为什么不写成 `light-dark()` 插进原声明：那会把每条深色规则都改写一遍，
+   以后 diff 里再也分不清"哪一行是深色、哪一行是浅色"，也违背本项目
+   "关掉皮肤 = 完全还原"的可逆设计。追加块的好处是删掉它就干净回到 v1.13。
+
+   为什么要同时改 `<html data-theme>`：皮肤从不覆盖文字颜色（那是应用自己
+   几百条令牌，覆盖不全就露馅）。应用的浅色令牌挂在 `[data-theme="light"]` 上，
+   切这一个属性，正文、图标、边框、语法高亮会自己变成黑字。皮肤只负责玻璃。
+
+   两条作用域约定（写错就会出现"关掉皮肤后一块浅色板浮在原版深色界面上"）：
+     背景 / 令牌 / 外壳  →  :root.cf-light:not(.cf-off)   皮肤关了必须让路
+     控制面板 / 提示条   →  :root.cf-light #cf-panel       面板永远跟着模式
+   ============================================================ */
+
+/* ---------- 8.1 变量默认值（浅色版的 §1） ----------
+
+   这一块的唯一职责，是让 payload.js 里 `isStock() → removeProperty` 那条短路
+   在浅色下也落到正确的数字上：变量被移除后回落到这里，而不是回落到 §1 的深色值。
+   数字必须与 derive()/deriveTint() 对默认底色 #f5f3fc 的计算结果一致，
+   否则"随手拖一下色轮"会让整窗突然跳一档白。 */
+:root.cf-light {
+  color-scheme: light; /* 兜底：即使应用的 light 块没生效，light-dark() 也按浅色解析 */
+  --cf-tint: 251, 250, 254;
+  --cf-c-base: 245, 243, 252;
+  --cf-base-top: 245, 243, 252;
+  --cf-base-mid: 239, 237, 246;
+  --cf-base-end: 234, 232, 241;
+}
+
+/* ---------- 8.2 玻璃后面的底色：同一套几何，压成淡彩 ----------
+
+   光斑的三元组一个都没改（还是 --cf-c-main / --cf-c-alt / 三盏派生光晕），
+   只把 alpha 压到深色模式的六成左右，再在最上面盖一层乳白雾。
+   这样自定义配色在两个模式下共用同一组变量，不需要第二套色彩数学 ——
+   用户选的那支"落日橙"，白天就是一片很淡的橙雾。 */
+:root.cf-light:not(.cf-off) #cf-backdrop {
+  background:
+    radial-gradient(1100px 760px at 50% 36%, rgba(255, 255, 255, 0.35), transparent 72%),
+    radial-gradient(920px 620px at 12% 6%, rgba(var(--cf-c-main), 0.26), transparent 64%),
+    radial-gradient(780px 540px at 90% 10%, rgba(var(--cf-c-alt), 0.2), transparent 62%),
+    radial-gradient(860px 640px at 76% 94%, rgba(var(--cf-c-glow3), 0.2), transparent 64%),
+    radial-gradient(640px 480px at 22% 90%, rgba(var(--cf-c-glow4), 0.1), transparent 68%),
+    radial-gradient(520px 520px at 50% 45%, rgba(var(--cf-c-glow5), 0.05), transparent 72%),
+    linear-gradient(
+      160deg,
+      rgb(var(--cf-base-top)) 0%,
+      rgb(var(--cf-base-mid)) 46%,
+      rgb(var(--cf-base-end)) 100%
+    );
+  /* 暗角：纯黑 22% 在浅底上会脏成灰边，换成带紫的极淡一层，只用来收边 */
+  box-shadow: inset 0 0 140px 8px rgba(58, 44, 96, 0.05);
+}
+
+/* ---------- 8.3 表面令牌（22 条，倍数一字不改，只换底色） ----------
+
+   倍数（*100% / *96% / *110% …）是"玻璃厚度"的唯一来源：它决定了
+   "--color-surface-tertiary 比 primary 厚一档"。照抄倍数，两个模式下
+   拖动透明度滑块时各层的相对关系才一致。
+
+   底色选择：不是纯白，而是带一点紫的冷白（#f7f5fc 系）。
+   纯白会让所有面板融成一片，看不出层级；灰白又会让淡彩变成脏灰。 */
+:root.cf-light:not(.cf-off) {
+  --color-token-main-surface-primary: color-mix(in srgb, #f7f5fc calc(var(--cf-alpha) * 100%), transparent);
+  --color-surface: color-mix(in srgb, #f7f5fc calc(var(--cf-alpha) * 100%), transparent);
+  --color-surface-card: color-mix(in srgb, #f7f5fc calc(var(--cf-alpha) * 100%), transparent);
+  --color-surface-canvas: color-mix(in srgb, #f7f5fc calc(var(--cf-alpha) * 100%), transparent);
+  --color-surface-secondary: color-mix(in srgb, #f2f0f9 calc(var(--cf-alpha) * 96%), transparent);
+  --color-surface-recovery: color-mix(in srgb, #f4f2fb calc(var(--cf-alpha) * 90%), transparent);
+  --color-surface-tertiary: color-mix(in srgb, #eeeaf7 calc(var(--cf-alpha) * 110%), transparent);
+  --color-surface-elevated: color-mix(in srgb, #fdfcff min(100%, calc(var(--cf-alpha) * 130%)), transparent);
+
+  --codex-base-surface: color-mix(in srgb, #f7f5fc calc(var(--cf-alpha) * 100%), transparent);
+  --wb-surface-primary: color-mix(in srgb, #f7f5fc calc(var(--cf-alpha) * 100%), transparent);
+  --wb-surface-secondary: color-mix(in srgb, #f2f0f9 calc(var(--cf-alpha) * 96%), transparent);
+  --color-token-bg-primary: color-mix(in srgb, #f2f0f9 calc(var(--cf-alpha) * 96%), transparent);
+
+  --app-color-background-surface: color-mix(in srgb, #f7f5fc calc(var(--cf-alpha) * 100%), transparent);
+  --app-color-background-shell: color-mix(in srgb, #eeeaf7 calc(var(--cf-alpha) * 104%), transparent);
+  --app-color-background-surface-under: color-mix(in srgb, #f2f0f9 calc(var(--cf-alpha) * 92%), transparent);
+  --app-color-background-editor-opaque: color-mix(in srgb, #eeeaf7 calc(var(--cf-alpha) * 110%), transparent);
+  --app-color-background-elevated-primary-opaque: color-mix(in srgb, #fdfcff min(100%, calc(var(--cf-alpha) * 132%)), transparent);
+  --app-color-background-elevated-secondary-opaque: color-mix(in srgb, #f5f3fb calc(var(--cf-alpha) * 120%), transparent);
+  --app-color-background-elevated-tertiary-opaque: color-mix(in srgb, #eeeaf7 calc(var(--cf-alpha) * 112%), transparent);
+
+  /* 玻璃片的"墨色"：深色模式是往深里调一档，浅色模式反过来往白里调一档。
+     --color-background-composer-surface 引用的是 var(--cf-composer-ink)，
+     在同一个元素上重新定义 ink 就够了，不用把那条声明再抄一遍。 */
+  --cf-composer-ink: color-mix(in srgb, rgb(var(--cf-tint)) 26%, #ffffff);
+  --cf-menu-ink: color-mix(in srgb, rgb(var(--cf-tint)) 18%, #ffffff);
+
+  --color-background-composer-action-bar: color-mix(in srgb, #f5f3fb calc(var(--cf-alpha) * 110%), transparent);
+  --color-background-control-opaque: color-mix(in srgb, #f2effa calc(var(--cf-alpha) * 118%), transparent);
+
+  --app-shell-page-window-fill: color-mix(in srgb, #f2f0f9 calc(var(--cf-alpha) * 88%), transparent);
+  --app-shell-sidebar-docked-background: color-mix(in srgb, #f7f5fc calc(var(--cf-alpha) * 104%), transparent);
+  --app-shell-sidebar-popover-background: color-mix(in srgb, #f2effa min(100%, calc(var(--cf-alpha) * 135%)), transparent);
+}
+
+/* 代码块：浅色下要比背景略深一点点，否则和正文糊成一片。
+   原生浅色主题给的是 #fcfcfc，几乎看不出边界。 */
+:root.cf-light:not(.cf-off) {
+  --codeblock-background-color: color-mix(in srgb, #efeaf9 min(100%, calc(var(--cf-alpha) * 190%)), transparent);
+}
+
+/* ---------- 8.4 外壳三件套 ----------
+
+   规律：白色内高光**保留**（它仍然是"玻璃边"，在浅底上表现为一道更亮的边），
+   但外描边与外阴影全部换成低 alpha 的紫黑 —— 白底配白边等于没有边，
+   而深色模式的黑阴影（.32）在这里会像贴了块黑胶布。 */
+:root.cf-light:not(.cf-off) #root {
+  background-color: color-mix(in srgb, rgb(var(--cf-tint)) calc(var(--cf-alpha) * 58%), transparent) !important;
+  background-image: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.34) 0%,
+    rgba(255, 255, 255, 0.18) 26%,
+    rgba(255, 255, 255, 0.06) 55%,
+    rgba(255, 255, 255, 0.22) 100%
+  ) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    inset 0 0 0 1px rgba(24, 20, 45, 0.05);
+}
+
+:root.cf-light:not(.cf-off) [data-cf-composer] {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    inset 0 0 0 1px rgba(24, 20, 45, 0.07),
+    0 8px 28px rgba(45, 35, 90, 0.1);
+}
+
+:root.cf-light:not(.cf-off) [data-cf-sidebar] {
+  box-shadow: inset -1px 0 0 rgba(24, 20, 45, 0.06);
+}
+
+/* ---------- 8.5 三族顶层浮层 ----------
+
+   浓度下限从深色的 22% 提到 74%。原因很直接：浅色模式下墨色本身已经接近白，
+   22% 的白叠在浅紫背景上对比度只有 1.02:1 —— 菜单和悬停卡片看不出是一块面，
+   会回到 v1.13.3 那个"只有文字飘在侧栏上"的问题。
+   74% 配 18px 模糊 + 一圈描边，才是"看得出是张卡片、但读不出背后的字"。
+   上限仍跟着 --cf-alpha 走，调厚时同步变实。 */
+:root.cf-light:not(.cf-off) [data-anchor-positioning],
+:root.cf-light:not(.cf-off) [data-radix-popper-content-wrapper] > *:not([data-radix-popper-arrow]),
+:root.cf-light:not(.cf-off) [data-composer-overlay-floating-ui] > *:not([data-radix-popper-arrow]) {
+  background-color: color-mix(
+    in srgb,
+    var(--cf-menu-ink) calc(max(74%, var(--cf-alpha) * 118%)),
+    transparent
+  ) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.1);
+  backdrop-filter: blur(18px) saturate(1.1);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 0 0 1px rgba(24, 20, 45, 0.07),
+    0 16px 40px rgba(45, 35, 90, 0.16) !important;
+}
+
+/* ---------- 8.6 tooltip 文字：应用把「控件底色」当文字色用 ----------
+
+   Codex 的 tooltip 是**反色气泡**：深色主题给浅色气泡 + 深字，浅色主题给深色气泡 + 白字。
+   它的实现是把 `--color-background-control-opaque` 塞进 `light-dark()` 当前景用，例如
+
+     --color-text-tooltip: light-dark(<control-opaque>, #d6deeb)
+
+   深色分支取到 #d6deeb，正好是浅灰字，落在我们那层深色玻璃上 —— 没问题。
+   但浅色分支取到的是我们第 8.3 节做成 7% 透明的浅色控件底，于是变成
+   「7% 的白字落在白玻璃上」：tooltip 只剩一个空白色胶囊（加上里面的 Ctrl+[ 也一起消失）。
+
+   所以浅色下必须把这族令牌钉成实色。比例照抄应用自己的写法：
+   主文字 100%，次级 90%，三级 80%，带语义的 70% 文字色 + 30% 语义色。 */
+:root.cf-light:not(.cf-off) {
+  --color-text-tooltip: #1a1c1f;
+  --tooltip-text-color: #1a1c1f;
+  --color-text-tooltip-shortcut: #1a1c1f;
+  --color-text-tooltip-secondary: color-mix(in srgb, #1a1c1f 90%, transparent);
+  --color-text-tooltip-description: color-mix(in srgb, #1a1c1f 90%, transparent);
+  --color-text-tooltip-tertiary: color-mix(in srgb, #1a1c1f 80%, transparent);
+
+  --color-text-tooltip-info: color-mix(in srgb, #1a1c1f 70%, #0169cc);
+  --tooltip-text-info-color: color-mix(in srgb, #1a1c1f 70%, #0169cc);
+  --color-text-tooltip-warning: color-mix(in srgb, #1a1c1f 70%, #923b0f);
+  --tooltip-text-warning-color: color-mix(in srgb, #1a1c1f 70%, #923b0f);
+  --color-text-tooltip-danger: color-mix(in srgb, #1a1c1f 70%, #911e1b);
+  --tooltip-text-danger-color: color-mix(in srgb, #1a1c1f 70%, #911e1b);
+  --color-text-tooltip-success: color-mix(in srgb, #1a1c1f 70%, #00692a);
+  --tooltip-text-success-color: color-mix(in srgb, #1a1c1f 70%, #00692a);
+
+  /* 快捷键小徽标与描边：原来是「25% / 5% 的文字色」，浅色下换成同比例的深色 */
+  --color-background-tooltip-shortcut: color-mix(in srgb, #1a1c1f 8%, transparent);
+  --tooltip-shortcut-background-color: color-mix(in srgb, #1a1c1f 8%, transparent);
+  --color-border-tooltip: color-mix(in srgb, #1a1c1f 10%, transparent);
+  --tooltip-border-color: color-mix(in srgb, #1a1c1f 10%, transparent);
+}
+
+/* 8.7 前景色钉子（§5 末尾那条 #0b1728）在这个模式下**故意不动**。
+   浅色主题里 --color-background-control-opaque 是纯白，原生前景
+   --color-text-primary-solid 也解析成 #ffffff —— 和 v1.12.2 修的
+   白底白箭头是同一个 bug，只是换了个底色。深色那句声明天然覆盖浅色，
+   所以这里什么都不写，只留这条注释防止以后有人"顺手"再钉一遍。 */
+
+* 8.8 极端透明度下的兜底（配合 §7 末尾的 @supports 块） */
+@supports not (color: color-mix(in srgb, red 50%, transparent)) {
+  :root.cf-light:not(.cf-off) #root,
+  :root.cf-light:not(.cf-off) [data-cf-composer] {
+    background-color: rgba(247, 245, 252, 0.92) !important;
+  }
+}
+
+* ---------- 8.9 控制面板：跟着模式变浅 ----------
+
+   这是唯一一处**不带** :not(.cf-off) 的浅色块。皮肤关掉时面板仍然浮在界面上，
+   它应该继续是浅色的 —— 否则就是"原版浅色界面 + 一块黑板"。
+   色环的 conic-gradient、SV 方块的 #000/#fff、mask 的 #000 一律不动：
+   那是颜色本身，浅色化会让取色不准。 */
+:root.cf-light #cf-panel {
+  color: #1a1a24;
+  background: rgba(250, 249, 253, 0.9);
+  border: 1px solid rgba(24, 20, 45, 0.1);
+  box-shadow: 0 16px 44px rgba(45, 35, 90, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  -webkit-backdrop-filter: blur(14px) saturate(1.05);
+  backdrop-filter: blur(14px) saturate(1.05);
+}
+
+:root.cf-light #cf-panel .cf-dot {
+  background: #7c5cd6;
+  box-shadow: 0 0 8px rgba(124, 92, 214, 0.55);
+}
+:root.cf-light #cf-panel.cf-off .cf-dot {
+  background: #a9a9b8;
+  box-shadow: none;
+}
+
+:root.cf-light #cf-panel button {
+  color: rgba(26, 26, 36, 0.62);
+}
+:root.cf-light #cf-panel button:hover {
+  background: rgba(24, 20, 45, 0.08);
+  color: #000;
+}
+
+:root.cf-light #cf-panel .cf-row {
+  color: rgba(26, 26, 36, 0.72);
+}
+:root.cf-light #cf-panel .cf-row b {
+  color: rgba(26, 26, 36, 0.9);
+}
+:root.cf-light #cf-panel .cf-hint {
+  color: rgba(26, 26, 36, 0.42);
+}
+
+:root.cf-light #cf-panel input[type="range"] {
+  background: rgba(24, 20, 45, 0.14);
+}
+:root.cf-light #cf-panel input[type="range"]::-webkit-slider-thumb {
+  background: #fff;
+  border: 1px solid rgba(24, 20, 45, 0.22);
+  box-shadow: 0 1px 3px rgba(24, 20, 45, 0.3);
+}
+:root.cf-light #cf-panel input[type="range"]::-webkit-slider-thumb:hover {
+  background: #f4f0fd;
+}
+
+:root.cf-light #cf-panel .cf-help {
+  border-color: rgba(26, 26, 36, 0.24);
+  color: rgba(26, 26, 36, 0.5);
+}
+:root.cf-light #cf-panel .cf-help:hover,
+:root.cf-light #cf-panel .cf-help:focus-visible {
+  color: #000;
+  border-color: rgba(26, 26, 36, 0.5);
+  background: rgba(24, 20, 45, 0.06);
+}
+
+:root.cf-light #cf-panel .cf-tip {
+  background: rgba(255, 255, 255, 0.98);
+  border-color: rgba(24, 20, 45, 0.12);
+  box-shadow: 0 12px 30px rgba(45, 35, 90, 0.22);
+  color: rgba(26, 26, 36, 0.74);
+}
+:root.cf-light #cf-panel .cf-tip b {
+  color: rgba(26, 26, 36, 0.96);
+}
+:root.cf-light #cf-panel .cf-tip-sub {
+  color: rgba(26, 26, 36, 0.45);
+}
+:root.cf-light #cf-panel .cf-tip-row i {
+  color: #5b46a8; /* 原来的亮蓝 rgba(160,200,255,.88) 在纯白底上读不出来 */
+}
+
+:root.cf-light #cf-panel .cf-offnote {
+  background: rgba(255, 176, 60, 0.14);
+  border-color: rgba(214, 132, 20, 0.32);
+  color: #8a4b00;
+}
+
+:root.cf-light #cf-panel .cf-preset {
+  border-color: rgba(24, 20, 45, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+:root.cf-light #cf-panel .cf-preset:hover {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 3px 8px rgba(45, 35, 90, 0.16);
+}
+:root.cf-light #cf-panel .cf-preset[aria-pressed="true"] {
+  outline-color: #4b3f8f; /* 原 #cfd8e6 在白底上等于不存在 */
+}
+
+:root.cf-light #cf-panel .cf-chip {
+  color: rgba(26, 26, 36, 0.7);
+  background: rgba(24, 20, 45, 0.05);
+}
+:root.cf-light #cf-panel .cf-chip:hover {
+  background: rgba(24, 20, 45, 0.08);
+}
+:root.cf-light #cf-panel .cf-chip.is-on {
+  background: rgba(124, 92, 214, 0.14);
+  border-color: rgba(124, 92, 214, 0.34);
+  color: #1a1230;
+}
+:root.cf-light #cf-panel .cf-chip .cf-sw {
+  box-shadow: 0 0 0 1px rgba(24, 20, 45, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+/* 色轮 knob 只补外阴影，2px 白边保留：白边是它在色环上的"抠像"，改了会糊 */
+:root.cf-light #cf-panel .cf-knob {
+  box-shadow: 0 1px 4px rgba(24, 20, 45, 0.55), 0 0 0 1px rgba(24, 20, 45, 0.35);
+}
+
+:root.cf-light #cf-panel .cf-hex,
+:root.cf-light #cf-panel .cf-rgb input {
+  background: rgba(24, 20, 45, 0.055);
+  color: #1a1a24;
+}
+
+:root.cf-light #cf-panel .cf-reset {
+  color: rgba(26, 26, 36, 0.62);
+  background: rgba(24, 20, 45, 0.04);
+  border-color: rgba(24, 20, 45, 0.1);
+}
+:root.cf-light #cf-panel .cf-reset:hover:not(:disabled) {
+  background: rgba(24, 20, 45, 0.08);
+  border-color: rgba(24, 20, 45, 0.18);
+  color: #000;
+}
+:root.cf-light #cf-panel .cf-reset:active:not(:disabled) {
+  background: rgba(24, 20, 45, 0.12);
+}
+
+:root.cf-light #cf-panel .cf-chip:focus-visible,
+:root.cf-light #cf-panel .cf-preset:focus-visible,
+:root.cf-light #cf-panel .cf-reset:focus-visible,
+:root.cf-light #cf-panel .cf-hex:focus-visible,
+:root.cf-light #cf-panel .cf-rgb input:focus-visible {
+  outline-color: rgba(24, 20, 45, 0.5);
+}
+
+:root.cf-light #cf-toast {
+  color: rgba(26, 26, 36, 0.86);
+  background: rgba(252, 251, 254, 0.92);
+  border-color: rgba(24, 20, 45, 0.1);
+  box-shadow: 0 10px 28px rgba(45, 35, 90, 0.18);
+}

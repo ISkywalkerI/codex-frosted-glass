@@ -22,6 +22,7 @@ No binary patching, no broken signatures, fully reversible — all styling is in
 - **Double-click entry, two flavours** — `Codex-skinned.exe` ships with the icon embedded and no console window, so it can be pinned to Start or the taskbar; switch to `Codex-skinned.cmd` when you want the full output
 - **Adjustable transparency** — drag a slider, the whole UI updates instantly, no reload
 - **Pick your own gradient** — an in-panel HSV wheel drives main light / secondary light / base colour; the other three glows and the glass tint are derived. Five presets, one click each, plus a reset when you want the default back
+- **Day and night bottoms** — navy glass with white text at night, milky pastel glass with black text by day; the glass structure itself is identical. Cycle `◒ / ☼ / ☾` on the panel (or `Ctrl + Shift + L`): follow the system → light → dark, defaulting to follow-the-system. The five presets swap their base for a same-hue light version automatically
 - **Layered depth** — shell, composer, sidebar and pop-up menus use four different glass thicknesses; the composer has its own transparency slider (0–30%, default 3%) so the transcript stays out of the way while you type
 - **Menus, hovers and dropdowns are all glass** — context menus, `⋯` menus, the project hover card, icon tooltips, the top menu bar (File / Edit / View / Help), the sidebar rail's fly-out card and the attachment / @ panel all share one recipe: thin base + 18px backdrop blur. Nothing is left dropping bare text on the sidebar, and no surface is left solid-dark
 - **Zero background processes** — double-click, launch + inject, exit. Nothing idles afterwards
@@ -81,7 +82,7 @@ The rule is not "never blur" but **don't blur where there is nothing to blur, an
 
 ## Quick start
 
-**① Download the release** (no git needed): grab `codex-frosted-glass-v1.13.5.zip` from
+**① Download the release** (no git needed): grab `codex-frosted-glass-v1.14.0.zip` from
 [Releases](https://github.com/ISkywalkerI/codex-frosted-glass/releases/latest) and extract it to a **permanent folder**.
 
 **② Clone the repo** (if you want to tweak or track updates):
@@ -144,11 +145,13 @@ The panel is **hidden by default** so it never covers the UI. Press `Ctrl + Shif
 | hex box / R G B boxes | Type exact values; an over-bright base colour is darkened automatically for legibility |
 | Drag the title bar | Move the panel (position is remembered) |
 | `◐` | Toggle the skin (turning it off restores the stock look instantly). Its tooltip spells out "Turn off the skin · back to the stock look" / "Turn on the skin · apply the frosted glass"; while off, an amber banner sits at the top of the panel and the colour controls below are dimmed and unclickable |
+| `◒` / `☼` / `☾` | Three-state theme cycle: follow the system → light → dark. The glyph is the current state (`◒` auto / `☼` light / `☾` dark); the tooltip names the next one |
 | `–` | Collapse / expand the panel |
 | **Reset colours** | Return all three colours to the default Aurora in one click (transparency untouched); the button greys out when you are already on the defaults |
 | `Ctrl + Shift + G` | Show / hide the panel (hidden by default; a 5-second hint appears on every launch) |
+| `Ctrl + Shift + L` | Three-state theme cycle (same as the `◒` button) |
 
-Settings live in `localStorage["cf-glass-v1"]`; the defaults are `55% transparency`, `3% composer transparency` and the Aurora palette (`#883ff1` · `#3566f0` · `#0b1728`, i.e. the v1.9 look).
+Settings live in `localStorage["cf-glass-v1"]`; the defaults are `55% transparency`, `3% composer transparency`, theme following the system, and the Aurora palette (`#883ff1` · `#3566f0` · `#0b1728` / light `#f5f3fc`, i.e. the v1.9 look).
 
 **Changes save themselves.** Releasing the wheel (or clicking a preset) writes to `localStorage` straight away — there is no save button. Quit Codex, launch it skinned again, and your last transparency and palette are still there. A page reload drops the skin (see Known limitations), but one more double-click brings your own colours back.
 
@@ -277,13 +280,39 @@ The probe exit codes are the contract between the launcher and `inject.js`:
 
 The log lives at `%LOCALAPPDATA%\CodexSkinned\launcher.log` (overwritten each run); on failure its tail is shown in the dialog. The icon and version resource are written into the PE at build time, which is why it can be pinned to Start like a normal app — Windows treats `.cmd` as a document and offers no such option.
 
+### 7. Light mode: one attribute flip, one appended block
+
+Light mode is not "a second skin". The skin's only contribution is the glass — it writes **not a single text colour**.
+
+**① The flip.** Codex switches appearance with one attribute: `<html data-theme="light">`. Its light block also carries `color-scheme: light`, so that one attribute flips several hundred `light-dark(a, b)` tokens at once — body text, icons, borders, syntax highlighting, scrollbars all turn black. The skin never overrides those tokens (there are too many, and missing one gives the game away), so light-mode text is entirely the app's business.
+
+**② The appended block.** Everything new in `skin.css` lives under `:root.cf-light`; the 727 lines above it are untouched. That keeps `git diff` honest about which lines belong to which mode, and deleting the block returns you cleanly to v1.13. Threading `light-dark()` through the original declarations was rejected: every dark rule would have been rewritten, and after that nobody could tell the two modes apart.
+
+**③ One geometry, two concentrations.** Light mode reuses every dark value — the same six gradient layers, the same bloom coordinates, the same alpha multipliers — and only drops the bloom alpha to roughly 60% before adding a milky veil. That is why a user-chosen palette needs no second colour model: your Sunset preset becomes a very pale orange haze by day.
+
+The numbers worth remembering:
+
+| Item | Dark | Light |
+|---|---|---|
+| Glass tint `--cf-tint` | base × 0.85, clamped to **0–60** | 42% toward white, clamped to **238–253** |
+| Base lightness guard | ceiling `L = 0.30` (too bright washes out text) | floor `L = 0.86` (too dark turns the pastel to grey) |
+| Top-layer overlay density | `max(22%, alpha × 160%)` | `max(74%, alpha × 118%)` |
+
+That 22% → 74% floor is the only structural change on the light side: light ink is nearly white, and 22% white over a pale lavender backdrop is 1.02:1 — menus would regress to the v1.13.3 state where "bare text floats on the sidebar".
+
+**④ The foreground pin is shared.** The `#0b1728` pin at the end of §5 is **deliberately not overridden** in light mode: in the light theme `--color-background-control-opaque` is pure white and the native foreground resolves to `#ffffff` — white-on-white, the same bug v1.12.2 fixed, just with a different backdrop.
+
+**⑤ If it loses the fight, it retreats.** The app stores `appearanceTheme` in `~/.codex/config.toml`, and the settings page or a config write-back can put `data-theme` back. The skin watches that attribute and rewrites it; six failed attempts within a second mean the app is enforcing an appearance, so the skin adopts the app's actual theme and says so — it never parks you in front of light glass with light text.
+
 ## Known limitations
 
 - **Reloading the page drops the skin.** Styles live in the current page, so a refresh or reopen loses them — double-click the entry again. Use daemon mode (`node inject.js`) to keep it alive automatically (about 57 MB resident)
 - **The app must be launched with the debug port** for injection to work; opening it from the Start menu normally will not apply the skin (that is how Chromium works)
 - No desktop transparency on Windows 10 — see above
 - A major UI redesign may break the geometric tagging. The log then shows `composer× sidebar×`, and the thresholds in `payload.js` need a tweak
-- **An over-bright base colour is darkened automatically** (lightness capped at 30%), otherwise body text washes out. The hex box keeps what you typed; the colour chip shows the darkened result
+- **An over-bright base colour is darkened automatically** (lightness capped at 30%), otherwise body text washes out. The hex box keeps what you typed; the colour chip shows the darkened result. Light mode runs the guard the other way: **an over-dark base is lifted** (floor 86%), otherwise the pastel collapses into dirty grey
+- **Light mode borrows the app's own light tokens** — the skin only supplies the glass. If Codex ever forces its dark appearance, the skin falls back to dark and says so at the top instead of leaving you with white-on-white
+- **Old saves only carry the dark base** (everything up to v1.13 stored a single `base`), so the first light-mode session shows the default pastel lavender; nudge the base once in light mode and the two sets stay independent from then on
 - **Editing `skin.css` / `payload.js` requires re-injection**: both are read into memory as strings when the injector starts
 - **The exe is unsigned**: expect a SmartScreen prompt on first run (More info → Run anyway); a few AV engines false-positive on PyInstaller one-file builds — whitelist it, or use `Codex-skinned.cmd` / `node inject.js` instead. See [Two ways to launch](#two-ways-to-launch)
 - **The exe is 8.4 MB**: it bundles a Python runtime so double-clicking works on any machine; the skin itself is still a few dozen KB of CSS/JS
@@ -296,6 +325,8 @@ The log lives at `%LOCALAPPDATA%\CodexSkinned\launcher.log` (overwritten each ru
 | `cannot connect to Codex debug port` | Codex has been running the stock way for a while. Quit it fully and retry, or run `node inject.js --restart` |
 | Injection succeeds but nothing changes | Panel may be hidden — press `Ctrl+Shift+G`; or the skin is toggled off — click `◐` |
 | Text becomes unreadable | Transparency is too high; bring the slider back to 40–60% |
+| Switched to light but it snapped back to dark | Codex has locked its appearance (`appearanceTheme` in `~/.codex/config.toml`). Change the theme once in the app's Settings → Appearance, then press `Ctrl+Shift+L` |
+| One panel stays dark in light mode | That spot uses a hard-coded colour instead of a design token. One `:root.cf-light` override fixes it — send a screenshot and the selector |
 | Broke after a Codex update | Class names or tokens changed; check the console log |
 | Colours changed but the backdrop did not | You edited `skin.css` / `payload.js` without re-running the entry point (styles are strings read at startup) |
 | Panel ends up off-screen | It is clamped by its real height automatically; drag it back if needed (the position is remembered) |

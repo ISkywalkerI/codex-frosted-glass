@@ -5,14 +5,19 @@
    其余光晕与玻璃底色由主光/副光/底色派生。
    ============================================================ */
 
-const CF_VER = "1.13.5";
+const CF_VER = "1.14.0";
 const KEY = "cf-glass-v1";
 
-/* 3 个可调颜色的默认值 = v1.9.1 的硬编码观感 */
-const COLORS = { main: "#883ff1", alt: "#3566f0", base: "#0b1728" };
+/* 3 个可调颜色的默认值 = v1.9.1 的硬编码观感
+   baseL：同一个配色的浅色版底色。深浅两套底色分开存，是因为它们的明度方向相反
+   （深色要压到 L 0.30 以下、浅色要抬到 L 0.86 以上），拿一个 hex 靠公式反推
+   会让 #0b1728 变成灰粉，丢掉"极光紫"的身份。 */
+const COLORS = { main: "#883ff1", alt: "#3566f0", base: "#0b1728", baseL: "#f5f3fc" };
 
 /* hidden: 默认隐藏调节面板，按 Ctrl+Shift+G 调出（首次运行即隐藏）
-   ct: 输入框透明度%，0 = 实心，30 = 最透。默认 3（= 97% 的底，实测临界值） */
+   ct: 输入框透明度%，0 = 实心，30 = 最透。默认 3（= 97% 的底，实测临界值）
+   mode: auto = 跟随系统外观（首次运行即跟随），light / dark = 手动锁定。
+         默认 auto 在老存档上等价于"系统深色 → 深色"，观感与 v1.13 完全一致。 */
 const DEFAULTS = {
   t: 55,
   ct: 3,
@@ -21,7 +26,8 @@ const DEFAULTS = {
   hidden: true,
   x: null,
   y: null,
-  c: { main: COLORS.main, alt: COLORS.alt, base: COLORS.base },
+  mode: "auto",
+  c: { main: COLORS.main, alt: COLORS.alt, base: COLORS.base, baseL: COLORS.baseL },
 };
 
 /* 头像浮层这类小窗口不套皮肤：它会把浮层变成一块渐变底 + 角落多出控制面板 */
@@ -56,7 +62,23 @@ s.c = {
   main: normHex(s.c && s.c.main, COLORS.main),
   alt: normHex(s.c && s.c.alt, COLORS.alt),
   base: normHex(s.c && s.c.base, COLORS.base),
+  // 老存档没有 baseL（v1.13 及以前只有一套深色底色）：回落默认淡紫白，
+  // 用户第一次在浅色模式下拖一次色轮就会写回自己的值。
+  baseL: normHex(s.c && s.c.baseL, COLORS.baseL),
 };
+
+/* 主题模式：auto / light / dark。脏值一律回落 auto。
+   auto 的语义是「跟随系统外观」而不是「跟随应用设置」—— 应用的 appearanceTheme
+   存在 config.toml 里（我们这台机器上写死 dark），若跟随它就永远不会自动变浅。 */
+const MODES = ["auto", "light", "dark"];
+if (!MODES.includes(s.mode)) s.mode = "auto";
+const MODE_NEXT = { auto: "light", light: "dark", dark: "auto" };
+
+/* 系统外观。Chromium 在 Electron 里读的是操作系统设置，
+   用户切系统主题时这里会触发 change，auto 模式下要立刻跟着翻。 */
+const MEDIA_LIGHT = matchMedia("(prefers-color-scheme: light)");
+const wantTheme = () => (s.mode === "auto" ? (MEDIA_LIGHT.matches ? "light" : "dark") : s.mode);
+const isLight = () => wantTheme() === "light";
 
 /* 输入框透明度：老存档里没有这个字段（或存了脏值），必须回落到默认 3，不能当 0 处理 ——
    `+undefined` 是 NaN，一旦被写成 0 就等于「实心」，用户会以为新控件坏了。 */
@@ -157,6 +179,9 @@ const STOCK_G3 = [85, 118, 143];
 const STOCK_G4 = [186, 67, 122];
 const STOCK_G5 = [0, 214, 196];
 const BASE_MAX_L = 0.3; // 底色亮度上限，防止选浅色把正文糊掉
+/* 浅色模式的护栏方向相反：底色必须足够白，否则"淡彩"会变成一块灰玻璃，
+   叠在浅色正文下面就是一片脏。两者互斥，由 derive() 的 light 参数二选一。 */
+const BASE_MIN_L = 0.86;
 const TINT_REF = [136, 63, 241];
 
 /* 两色混合后重设饱和度/明度（保留混色得到的色相） */
@@ -165,11 +190,12 @@ const mixTone = (a, b, t, s, l) => {
   return hslToRgb(rgbToHsl(m).h, s, l);
 };
 
-const derive = (mainHex, altHex, baseHex) => {
+const derive = (mainHex, altHex, baseHex, light) => {
   const B = hexToHsl(baseHex);
 
-  // 底色过亮 → 统一压到 L 0.30（保持 h/s，色相不漂）
-  const safeBaseHex = B.l > BASE_MAX_L ? hslToHex(B.h, B.s, BASE_MAX_L) : baseHex;
+  // 亮度护栏：深色压上限（太亮正文糊在底上），浅色抬下限（太暗淡彩变脏灰）
+  const over = light ? B.l < BASE_MIN_L : B.l > BASE_MAX_L;
+  const safeBaseHex = over ? hslToHex(B.h, B.s, light ? BASE_MIN_L : BASE_MAX_L) : baseHex;
   const baseRgb = hexToRgb(safeBaseHex);
 
   let g3, g4, g5;
@@ -186,7 +212,10 @@ const derive = (mainHex, altHex, baseHex) => {
   }
 
   // 底色 3 个停靠点用加法，默认处精确命中 (11,23,40)/(7,15,28)/(8,19,31)
+  // 浅色用等量下沉（-6 / -11）而不是深色那组按通道递增的偏移，并托一个 226 的地板，
+  // 否则浅底往下压会把渐变压成"上方白、下方灰"的分层感。
   const shift = (d) => baseRgb.map((v, i) => v + d[i]);
+  const floor = light ? (v) => Math.max(v, 226) : (v) => v;
 
   return {
     safeBaseHex,
@@ -194,17 +223,26 @@ const derive = (mainHex, altHex, baseHex) => {
     g4,
     g5,
     top: baseRgb,
-    mid: shift([-4, -8, -12]),
-    end: shift([-3, -4, -9]),
+    mid: shift(light ? [-6, -6, -6] : [-4, -8, -12]).map(floor),
+    end: shift(light ? [-11, -11, -11] : [-3, -4, -9]).map(floor),
   };
 };
 
 /* 玻璃片底色 = 底色 × 0.85，再按主光相对默认的偏移轻微染色（8%），上限 60。
-   必须是裸三元组：skin.css 用 rgb(var(--cf-tint)) 消费它。 */
-const deriveTint = (baseHex, mainHex) => {
+   必须是裸三元组：skin.css 用 rgb(var(--cf-tint)) 消费它。
+   浅色分支方向相反：向白靠 42%，再叠一点主光染色，限制在 238–253 ——
+   低于 238 就成了灰玻璃（白底上发脏），高于 253 则和纯白没差别、玻璃厚度消失。 */
+const deriveTint = (baseHex, mainHex, light) => {
   const b = hexToRgb(baseHex);
   const m = hexToRgb(mainHex);
-  return b.map((v, i) => r255(clamp(v * 0.85 + (m[i] - TINT_REF[i]) * 0.08, 0, 60))).join(", ");
+  return b
+    .map((v, i) => {
+      const d = (m[i] - TINT_REF[i]) * (light ? 0.06 : 0.08);
+      return light
+        ? r255(clamp(255 - (255 - v) * 0.42 + d, 238, 253))
+        : r255(clamp(v * 0.85 + d, 0, 60));
+    })
+    .join(", ");
 };
 
 const COLOR_PROPS = [
@@ -219,16 +257,23 @@ const COLOR_PROPS = [
   "--cf-base-mid",
   "--cf-base-end",
 ];
-const isStock = () => s.c.main === COLORS.main && s.c.alt === COLORS.alt && s.c.base === COLORS.base;
+const isStock = () =>
+  s.c.main === COLORS.main &&
+  s.c.alt === COLORS.alt &&
+  s.c.base === COLORS.base &&
+  s.c.baseL === COLORS.baseL;
 
 const applyColors = () => {
   const html = document.documentElement;
-  // 没动过颜色 ⇒ 把变量交还给样式表里的字面数字，做到与 v1.9.1 字节级一致
+  // 没动过颜色 ⇒ 把变量交还给样式表里的字面数字，做到与 v1.9.1 字节级一致。
+  // 浅色模式的默认值写在 skin.css §8.1 的 :root.cf-light 里，所以 removeProperty
+  // 在浅色下同样落到正确的数字上，两个模式共用这条短路。
   if (isStock()) {
     COLOR_PROPS.forEach((p) => html.style.removeProperty(p));
     return;
   }
-  const d = derive(s.c.main, s.c.alt, s.c.base);
+  const light = isLight();
+  const d = derive(s.c.main, s.c.alt, light ? s.c.baseL : s.c.base, light);
   const set = (p, v) => html.style.setProperty(p, v);
   set("--cf-c-main", join(hexToRgb(s.c.main)));
   set("--cf-c-alt", join(hexToRgb(s.c.alt)));
@@ -239,7 +284,7 @@ const applyColors = () => {
   set("--cf-base-top", join(d.top));
   set("--cf-base-mid", join(d.mid));
   set("--cf-base-end", join(d.end));
-  set("--cf-tint", deriveTint(d.safeBaseHex, s.c.main));
+  set("--cf-tint", deriveTint(d.safeBaseHex, s.c.main, light));
 };
 
 /* ---------- 2. 底色层（玻璃后面只有一层平滑渐变） ---------- */
@@ -323,6 +368,7 @@ const HEAD_HTML = `
       <span class="cf-dot"></span>
       <span class="cf-title">磨砂玻璃</span>
       <button class="cf-power" title="开关皮肤" aria-label="开关皮肤">◐</button>
+      <button class="cf-theme" title="主题" aria-label="主题">◒</button>
       <button class="cf-min" title="收起">–</button>
     </div>`;
 
@@ -387,7 +433,7 @@ const BODY_HTML = `
         <button class="cf-reset" type="button" title="重置配色：回到默认极光紫（不影响透明度）">重置配色</button>
       </div>
 
-      <div class="cf-hint">拖动标题移动 · Ctrl+Shift+G 隐藏/显示</div>
+      <div class="cf-hint">拖动标题移动 · Ctrl+Shift+G 隐藏 · Ctrl+Shift+L 主题</div>
     </div>`;
 
 let panel = document.getElementById("cf-panel");
@@ -397,7 +443,13 @@ if (!panel) {
   document.body.appendChild(panel);
 }
 if (!panel.querySelector(".cf-head")) panel.insertAdjacentHTML("afterbegin", HEAD_HTML);
-if (!panel.querySelector(".cf-wheel")) {
+/* 主体重建条件：没有色轮（v1.11 及以前），或底注还是旧的快捷键文案（v1.13 及以前）。
+   后者是升级路径的关键 —— 光有 .cf-wheel 不代表这份 DOM 是本版本的，
+   老面板的底注写着「Ctrl+Shift+G 隐藏/显示」，用户会以为主题没有快捷键。 */
+const staleHint = !/Ctrl\+Shift\+L/.test(
+  panel.querySelector(".cf-hint")?.textContent || ""
+);
+if (!panel.querySelector(".cf-wheel") || staleHint) {
   const oldBody = panel.querySelector(".cf-body");
   if (oldBody) oldBody.remove();
   panel.insertAdjacentHTML("beforeend", BODY_HTML);
@@ -425,11 +477,21 @@ if (!panel.querySelector(".cf-offnote")) {
   if (head) head.insertAdjacentHTML("afterend", OFF_HTML);
 }
 
+/* 老面板（v1.13 及以前注入过）的头栏没有主题按钮：就地补一个。
+   和大按钮块同样的道理 —— 不重建 .cf-head，重建会把已知节点换掉而监听不会重绑。 */
+if (!panel.querySelector(".cf-theme")) {
+  const THEME_HTML = `<button class="cf-theme" title="主题" aria-label="主题">◒</button>`;
+  const minBtn = panel.querySelector(".cf-min");
+  if (minBtn) minBtn.insertAdjacentHTML("beforebegin", THEME_HTML);
+  else panel.querySelector(".cf-head")?.insertAdjacentHTML("beforeend", THEME_HTML);
+}
+
 /* 补完之后再取一次：老面板的这两个节点是刚插进去的 */
 const cInput = $(".cf-c");
 const cVal = $(".cf-cv");
 const helpBtn = $(".cf-help");
 const powerBtn = $(".cf-power");
+const themeBtn = $(".cf-theme");
 
 /* 老面板（v1.11 及以前在本页注入过）没有「重置配色」按钮：就地补一个。
    不重建整块 .cf-body —— 重建会把已有控件连同监听一起换掉，
@@ -444,9 +506,98 @@ if (!panel.querySelector(".cf-actions")) {
   else panel.querySelector(".cf-body")?.insertAdjacentHTML("beforeend", ACTIONS_HTML);
 }
 
+/* ---------- 4.5 主题：把 <html data-theme> 掰到与皮肤一致 ----------
+
+   应用的深/浅外观不是靠 prefers-color-scheme，而是靠 <html data-theme="..."> 上的
+   两个选择器：`[data-theme="light"]{color-scheme:light}` 与它那一整套 light-dark()
+   令牌。一条属性就能把正文、图标、边框、语法高亮全部翻成黑字 —— 皮肤从不覆盖文字色
+   （那是应用自己的令牌，几百条，覆盖不全就露馅），所以这条属性是浅色模式唯一的开关，
+   也是唯一的风险点。
+
+   风险：应用的 appearanceTheme 存在 ~/.codex/config.toml（本机写死 dark），
+   设置页、配置回写、hydrate 都可能把属性改回去。这里盯着它：被改回去就重写；
+   一秒内抢 6 次仍失败就当应用在强制外观，立刻跟到应用实际的主题上 ——
+   绝不允许停在「浅玻璃 + 浅字」那种全白不可读的状态。 */
+let weWroteTheme = null;
+let weWroteAt = 0;
+let assertCount = 0;
+let assertWindow = 0;
+
+const setAppTheme = (want) => {
+  const html = document.documentElement;
+  if (html.dataset.theme === want) return;
+  const now = performance.now();
+  if (now - assertWindow > 1000) {
+    assertWindow = now;
+    assertCount = 0;
+  }
+  if (++assertCount > 6) {
+    adoptAppTheme();
+    return;
+  }
+  weWroteTheme = want;
+  weWroteAt = now;
+  html.dataset.theme = want;
+};
+
+/* 抢不过时：跟着应用实际的主题走，皮肤与文字至少是一致的 */
+const adoptAppTheme = () => {
+  const actual = document.documentElement.dataset.theme === "light" ? "light" : "dark";
+  if (s.mode === actual) return;
+  s.mode = actual;
+  save();
+  apply();
+  toastMsg(
+    "已切回与 Codex 一致的外观（应用锁定了主题）· Ctrl+Shift+L 可重试"
+  );
+};
+
+const syncTheme = () => {
+  const want = wantTheme();
+  document.documentElement.classList.toggle("cf-light", want === "light");
+  document.documentElement.style.colorScheme = want;
+  setAppTheme(want);
+};
+
+/* 应用自己改属性（设置页切换外观）时的两种反应：
+   auto → 不跟，我们按系统外观重新裁决；手动 → 改回去。 */
+if (!window.__cfThemeObs) {
+  window.__cfThemeObs = new MutationObserver(() => {
+    const t = document.documentElement.dataset.theme;
+    const mine = t === weWroteTheme && performance.now() - weWroteAt < 250;
+    if (mine) return;
+    if (s.mode === "auto") return;
+    if (t !== s.mode) requestAnimationFrame(() => s.mode !== "auto" && syncTheme());
+  });
+  window.__cfThemeObs.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["data-theme"],
+  });
+}
+
+/* 系统在亮/暗之间切换：auto 模式下必须立刻跟着翻（这是 auto 的全部意义）。
+   Chromium 在 Electron 里读的是操作系统设置，切系统主题时这里会触发。 */
+MEDIA_LIGHT.addEventListener("change", () => {
+  if (s.mode !== "auto") return;
+  syncTheme();
+  apply();
+});
+
+let toastTimer = null;
+const toastMsg = (text) => {
+  document.getElementById("cf-toast")?.remove();
+  const tip = document.createElement("div");
+  tip.id = "cf-toast";
+  tip.textContent = text;
+  document.body.appendChild(tip);
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => tip.remove(), 5000);
+};
+
 /* ---------- 5. 应用设置 ---------- */
 const apply = () => {
   const html = document.documentElement;
+  syncTheme(); // 必须最先：底色/对比度全部依赖它算出来的 cf-light
   const alpha = 1 - (s.t / 100) * 0.94; // t=0 → 1.0（不透）, t=100 → 0.06（几乎全透）
   html.style.setProperty("--cf-alpha", alpha.toFixed(3));
   html.classList.toggle("cf-off", !s.on);
@@ -470,6 +621,17 @@ const apply = () => {
     powerBtn.title = s.on ? "关闭皮肤 · 切回原版外观" : "打开皮肤 · 应用磨砂玻璃";
     powerBtn.setAttribute("aria-pressed", s.on ? "true" : "false");
   }
+
+  // 主题按钮：三态循环 auto → light → dark，图标直接表示当前档位。
+  // 用 ☼ 而不是 ☀：后者在部分字体里会走彩色 emoji，和面板其余单色图标不搭。
+  if (themeBtn) {
+    const next = MODE_NEXT[s.mode] || "auto";
+    const label = { auto: "跟随系统", light: "浅色", dark: "深色" }[s.mode];
+    const nextLabel = { auto: "跟随系统", light: "浅色", dark: "深色" }[next];
+    themeBtn.textContent = { auto: "◒", light: "☼", dark: "☾" }[s.mode];
+    themeBtn.title = `主题：${label} · 点按切到${nextLabel}`;
+    themeBtn.setAttribute("aria-pressed", s.mode === "auto" ? "false" : "true");
+  }
   if (s.x !== null && s.y !== null) {
     // 用面板实际尺寸钳制，保证整块面板都在窗口内（面板加高后旧坐标可能溢出）
     const maxX = Math.max(8, window.innerWidth - panel.offsetWidth - 8);
@@ -492,15 +654,22 @@ const scheduleSave = () => {
 };
 
 /* ---------- 5.5 配色 UI：预设 / 色靶 / 色轮 ---------- */
+/* 5 个配色，每个都带深/浅两套底色。
+   baseL 是手挑的而不是从 base 推出来的：#0b1728 按「保色相、抬明度」推会得到 #ede8ed
+   （灰粉），极光紫的身份就丢了。手挑的这组保证"同一个配色，白天和晚上是同一支香水"。 */
 const PRESETS = {
-  aurora: { name: "极光紫", main: "#883ff1", alt: "#3566f0", base: "#0b1728" },
-  ocean: { name: "深海蓝", main: "#38bdf8", alt: "#2563eb", base: "#071826" },
-  sunset: { name: "落日橙", main: "#ff8a3d", alt: "#e0447c", base: "#1a1018" },
-  forest: { name: "森林绿", main: "#34d399", alt: "#0ea5a4", base: "#081713" },
-  slate: { name: "灰玻璃", main: "#8fa0b8", alt: "#5b6b82", base: "#12161c" },
+  aurora: { name: "极光紫", main: "#883ff1", alt: "#3566f0", base: "#0b1728", baseL: "#f5f3fc" },
+  ocean: { name: "深海蓝", main: "#38bdf8", alt: "#2563eb", base: "#071826", baseL: "#eef5fd" },
+  sunset: { name: "落日橙", main: "#ff8a3d", alt: "#e0447c", base: "#1a1018", baseL: "#fdf1f0" },
+  forest: { name: "森林绿", main: "#34d399", alt: "#0ea5a4", base: "#081713", baseL: "#eef8f2" },
+  slate: { name: "灰玻璃", main: "#8fa0b8", alt: "#5b6b82", base: "#12161c", baseL: "#f3f4f8" },
 };
 
 let target = "main"; // 当前编辑目标：main / alt / base（纯 UI 态，不写 localStorage）
+
+/* 底色有两个键（base / baseL），所有读写都必须过这一层：
+   浅色模式下改的是 baseL，深色模式改 base。漏一处就会表现为"浅色下拖色轮不动/回弹"。 */
+const tKey = (k = target) => (k === "base" && isLight() ? "baseL" : k);
 
 const wheelEl = $(".cf-wheel");
 const svEl = $(".cf-sv");
@@ -527,7 +696,7 @@ const measureWheel = () => {
 
 const drawWheel = (hsvOverride) => {
   if (!geo) measureWheel();
-  const hsv = hsvOverride || hexToHsv(s.c[target]);
+  const hsv = hsvOverride || hexToHsv(s.c[tKey()]);
   wheelEl.style.setProperty("--cf-h", hsv.h.toFixed(1));
   const cx = geo.w / 2;
   const cy = geo.h / 2;
@@ -540,13 +709,15 @@ const drawWheel = (hsvOverride) => {
 };
 
 const renderColorUI = (hsvOverride, skipHex) => {
-  // 预设缩略：主光 → 副光 → 底色
+  // 预设缩略：主光 → 副光 → 底色（底色按当前模式取深/浅那一套）
+  const bk = isLight() ? "baseL" : "base";
   panel.querySelectorAll(".cf-preset").forEach((el) => {
     const p = PRESETS[el.dataset.preset];
     if (!p) return;
-    el.style.background = `linear-gradient(135deg, ${p.main} 0%, ${p.alt} 55%, ${p.base} 100%)`;
-    // 高亮由三色比对推导，不存 preset 字段 —— 不会出现"高亮和实际颜色不一致"的脏状态
-    const on = p.main === s.c.main && p.alt === s.c.alt && p.base === s.c.base;
+    el.style.background = `linear-gradient(135deg, ${p.main} 0%, ${p.alt} 55%, ${p[bk]} 100%)`;
+    // 高亮由三色比对推导，不存 preset 字段 —— 不会出现"高亮和实际颜色不一致"的脏状态。
+    // 只比当前模式那套底色，否则切模式后高亮会整体掉光。
+    const on = p.main === s.c.main && p.alt === s.c.alt && p[bk] === s.c[bk];
     el.setAttribute("aria-pressed", on ? "true" : "false");
   });
 
@@ -559,13 +730,13 @@ const renderColorUI = (hsvOverride, skipHex) => {
     const k = el.dataset.target;
     el.classList.toggle("is-on", k === target);
     const sw = el.querySelector(".cf-sw");
-    if (sw) sw.style.background = s.c[k];
+    if (sw) sw.style.background = s.c[tKey(k)];
   });
 
   drawWheel(hsvOverride);
 
   // 读数：正在编辑的输入框不回写，否则打字被打断
-  const hex = s.c[target];
+  const hex = s.c[tKey()];
   if (!skipHex && document.activeElement !== hexInput) hexInput.value = hex;
   const [r, g, b] = hexToRgb(hex);
   const cur = { r, g, b };
@@ -574,10 +745,10 @@ const renderColorUI = (hsvOverride, skipHex) => {
   });
 };
 
-/* 提交一个颜色（唯一写入口：s.c[target] = hex） */
+/* 提交一个颜色（唯一写入口：s.c[tKey()] = hex） */
 const commitHex = (hex) => {
-  if (hex === s.c[target]) return;
-  s.c[target] = hex;
+  if (hex === s.c[tKey()]) return;
+  s.c[tKey()] = hex;
   applyColors();
   renderColorUI();
   scheduleSave();
@@ -597,7 +768,7 @@ const onMove = (e) => {
     const ev = pendingEv;
     pendingEv = null;
     if (!ev || !mode || !rect) return;
-    const cur = hexToHsv(s.c[target]);
+    const cur = hexToHsv(s.c[tKey()]);
     let h = cur.h;
     let sat = cur.s;
     let v = cur.v;
@@ -615,11 +786,11 @@ const onMove = (e) => {
     }
 
     const hex = hsvToHex(h, sat, v);
-    if (hex === s.c[target]) {
+    if (hex === s.c[tKey()]) {
       drawWheel({ h, s: sat, v }); // 舍入没变也保持 knob 跟手
       return;
     }
-    s.c[target] = hex;
+    s.c[tKey()] = hex;
     applyColors();
     renderColorUI({ h, s: sat, v }); // 用临时 HSV 画 knob，避免 hex 往返抖动
     scheduleSave();
@@ -679,7 +850,8 @@ if (!window.__cfPanelBound) {
   onActivate($(".cf-presets"), (el) => {
     const p = PRESETS[el.dataset.preset];
     if (!p) return;
-    s.c = { main: p.main, alt: p.alt, base: p.base };
+    // 两套底色一起写：只写当前模式那套，切回去就会掉出预设态
+    s.c = { main: p.main, alt: p.alt, base: p.base, baseL: p.baseL };
     apply();
     save();
   });
@@ -719,13 +891,13 @@ if (!window.__cfPanelBound) {
     let v = hexInput.value.trim();
     if (v && v[0] !== "#") v = "#" + v;
     if (!/^#[0-9a-f]{6}$/i.test(v)) return; // 输入到一半不打扰
-    s.c[target] = v.toLowerCase();
+    s.c[tKey()] = v.toLowerCase();
     applyColors();
     renderColorUI(null, true); // 不回写正在输入的 hex 框
     scheduleSave();
   });
   hexInput.addEventListener("blur", () => {
-    hexInput.value = s.c[target];
+    hexInput.value = s.c[tKey()];
   });
 
   Object.keys(rgbInputs).forEach((k) => {
@@ -770,13 +942,27 @@ if (!window.__cfPanelBound) {
     });
   })();
 
-  /* 快捷键：隐藏/显示面板 */
+}
+
+/* 快捷键：G = 隐藏/显示面板（不切皮肤），L = 主题三态循环。
+   单独守卫而不并进上面的大绑定块：窗口级监听在页内重复注入时只能有一份
+   （两份的话按一次 G 会连翻两次，等于没反应），而 __cfPanelBound 早已被上一版
+   实例置位，大绑定块不会再跑 —— 快捷键就会一直停在旧版本的行为上。 */
+if (!window.__cfKeysBound) {
+  window.__cfKeysBound = true;
   window.addEventListener(
     "keydown",
     (e) => {
-      if (e.ctrlKey && e.shiftKey && (e.key === "G" || e.key === "g")) {
+      if (!e.ctrlKey || !e.shiftKey) return;
+      const k = e.key.toLowerCase();
+      if (k === "g") {
         e.preventDefault();
         s.hidden = !s.hidden;
+        apply();
+        save();
+      } else if (k === "l") {
+        e.preventDefault();
+        s.mode = MODE_NEXT[s.mode] || "auto";
         apply();
         save();
       }
@@ -833,12 +1019,24 @@ bindOnce(cInput, () => {
   if (!btn || btn.dataset.cfBound) return;
   btn.dataset.cfBound = "1";
   btn.addEventListener("click", () => {
-    s.c = { main: COLORS.main, alt: COLORS.alt, base: COLORS.base };
+    s.c = { main: COLORS.main, alt: COLORS.alt, base: COLORS.base, baseL: COLORS.baseL };
     applyColors(); // 三色回到默认 ⇒ removeProperty，与未改过完全一致
     renderColorUI();
     save(); // 立即落盘，不等防抖
   });
 })();
+
+/* 主题按钮：同样单独守卫 —— 老面板的按钮是本次才补进去的，
+   __cfPanelBound 早已置位，主绑定块不会再跑一遍。 */
+bindOnce(themeBtn, () => {
+  themeBtn.addEventListener("click", () => {
+    s.mode = MODE_NEXT[s.mode] || "auto";
+    apply();
+    save(); // 立即落盘：主题是最容易被"下次启动又变回去"投诉的开关
+    const label = { auto: "跟随系统", light: "浅色", dark: "深色" }[s.mode];
+    toastMsg(`主题：${label} · Ctrl+Shift+L 切换`);
+  });
+});
 
 /* ---------- 6. 跟随 SPA 重渲染 ---------- */
 let tagTimer = null;
@@ -881,20 +1079,17 @@ apply();
 /* 每次注入（= 每次双击入口、每次以皮肤模式打开）都强制提示 5 秒。
    旧版只在「面板隐藏」时提示，用户一旦把面板调出来过（hidden=false），
    以后每次启动就静悄悄地什么都不显示 —— 快捷键反而更容易忘。 */
-{
-  document.getElementById("cf-toast")?.remove();
-  const tip = document.createElement("div");
-  tip.id = "cf-toast";
-  tip.textContent = s.hidden
-    ? "调节面板已隐藏 · Ctrl + Shift + G 调出"
-    : "Ctrl + Shift + G 隐藏调节面板";
-  document.body.appendChild(tip);
-  setTimeout(() => tip.remove(), 5000);
-}
+toastMsg(
+  s.hidden
+    ? "调节面板已隐藏 · Ctrl + Shift + G 调出 · Ctrl + Shift + L 主题"
+    : "Ctrl + Shift + G 隐藏调节面板 · Ctrl + Shift + L 主题"
+);
 
 document.documentElement.dataset.cfSkin = CF_VER;
 return {
   version: CF_VER,
+  mode: s.mode,
+  light: isLight(),
   alpha: getComputedStyle(document.documentElement).getPropertyValue("--cf-alpha").trim(),
   composer: !!document.querySelector("[data-cf-composer]"),
   sidebar: !!document.querySelector("[data-cf-sidebar]"),
