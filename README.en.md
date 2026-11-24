@@ -24,6 +24,7 @@ No binary patching, no broken signatures, fully reversible — all styling is in
 - **Pick your own gradient** — an in-panel HSV wheel drives main light / secondary light / base colour; the other three glows and the glass tint are derived. Five presets, one click each, plus a reset when you want the default back
 - **Layered depth** — shell, composer, sidebar and pop-up menus use four different glass thicknesses; the composer has its own transparency slider (0–30%, default 3%) so the transcript stays out of the way while you type
 - **Menus are glass too** — context menus, `⋯` menus and dropdowns get an 18px backdrop blur over a thin base, matching the account menu instead of dropping bare text on top of sidebar text
+- **Hover surfaces are glass too** — the project hover card and icon tooltips share the same rule, so they no longer look like a bare layer of text floating over the list
 - **Zero background processes** — double-click, launch + inject, exit. Nothing idles afterwards
 - **Reversible** — toggle the `◐` button (or the `cf-off` class on `<html>`) to switch back to stock
 - **Non-invasive** — no registry writes, no autostart, no services, no telemetry
@@ -59,12 +60,13 @@ So the window itself only does **transparency**: draw a smooth ambient gradient 
 
 v1.7 / v1.8 added `backdrop-filter: blur()` to the window and the composer; v1.9 **removed it**, because there is nothing behind the glass to blur — the backdrop is a smooth gradient we draw ourselves, and blur only removes high-frequency detail. Dragging blur from 0 to 60 changed the screen by **0.39%** on average. (v1.8 stuffed a multi-scale bokeh field behind the glass to give blur something to chew on: an extra DOM layer, an extra SVG and a full-window GPU blur, all to feed a parameter that should not exist.)
 
-One class of surface is the exception: **top-layer pop-up menus**. They sit on top of real content (the conversation list, the transcript), which is full of high-frequency detail — and Codex itself already uses `backdrop-filter` on that layer. The account menu is `blur(8px)`, which is exactly why it reads as the most "frosted" surface in the app. So since v1.13.3:
+One class of surface is the exception: **top-layer overlays**. They sit on top of real content (the conversation list, the transcript), which is full of high-frequency detail — and Codex itself already uses `backdrop-filter` on that layer. The account menu is `blur(8px)`, which is exactly why it reads as the most "frosted" surface in the app. So since v1.13.4:
 
 | Surface | What is behind it | Treatment |
 |---|---|---|
 | Shell / sidebar / composer | our own smooth gradient (no high frequencies) | opacity + inner highlight + shadow only |
 | Menus / context menus / dropdowns | real content (columns of text) | thin base + `backdrop-filter: blur(18px)` |
+| Project hover card / icon tooltips (v1.13.4) | same — they sit on the conversation list | same rule, shared with menus |
 
 The rule is not "never blur" but **don't blur where there is nothing to blur, and do blur where there is**. A full-window `blur(38px)` remains the most expensive thing you can do while scrolling or streaming tokens — that one stays out.
 
@@ -80,7 +82,7 @@ The rule is not "never blur" but **don't blur where there is nothing to blur, an
 
 ## Quick start
 
-**① Download the release** (no git needed): grab `codex-frosted-glass-v1.13.3.zip` from
+**① Download the release** (no git needed): grab `codex-frosted-glass-v1.13.4.zip` from
 [Releases](https://github.com/ISkywalkerI/codex-frosted-glass/releases/latest) and extract it to a **permanent folder**.
 
 **② Clone the repo** (if you want to tweak or track updates):
@@ -181,7 +183,7 @@ So the rule is: **background tokens may be made translucent, foreground tokens m
 }
 ```
 
-**Second trap: `backdrop-filter` does not work everywhere.** A 26px backdrop blur on the composer changed nothing; in a controlled test (base down to 18%, blur up to 30px) the transcript behind it stayed pixel-crisp — on the composer node, blur cannot rescue legibility, only opacity can. **But it does work on top-layer menus:** remove the `backdrop-filter` from an open menu and capture the same frame, and "smeared into a wash" turns straight back into "clearly readable". That is why v1.13.3 uses a thin base + blur for menus, while the composer still relies on opacity alone.
+**Second trap: `backdrop-filter` does not work everywhere.** A 26px backdrop blur on the composer changed nothing; in a controlled test (base down to 18%, blur up to 30px) the transcript behind it stayed pixel-crisp — on the composer node, blur cannot rescue legibility, only opacity can. **But it does work on top-layer menus:** remove the `backdrop-filter` from an open menu and capture the same frame, and "smeared into a wash" turns straight back into "clearly readable". That is why v1.13.4 uses a thin base + blur for menus, while the composer still relies on opacity alone.
 
 ### 2. Layered thicknesses
 
@@ -191,6 +193,7 @@ So the rule is: **background tokens may be made translucent, foreground tokens m
 | Composer | **its own 0–30% transparency** (default 3%, i.e. a 97% base) + 1px top inner highlight + drop shadow — a thick pane sitting on top of the transcript |
 | Sidebar | 1px right edge highlight; thinner and more transparent than the shell |
 | Pop-up menus | thin base (`max(22%, alpha × 1.6)`) + `backdrop-filter: blur(18px)` + 1px inner ring + shadow — the same sheet of glass as the account menu |
+| Hover cards / tooltips | identical, via one rule on `[data-anchor-positioning]` — the project hover card and icon hints stop being bare transparent text |
 
 The composer is the one surface where you type *and* read at once, so it does not follow the global slider — it has its own (default 3% ≈ a 97% base, with a `?` tooltip in the panel explaining each band). At `transparency 100%` (alpha 0.06) a 7%-opaque base let the transcript bleed straight through the input area and interleave with what you were typing. Measured on a real window: 86% still left the background heading readable, 96% left faint lines, 99% was finally clean — 97% is the point where the words are gone but you can still tell it is a pane of glass. The glass read is carried by the inner highlight, the bright edge and the shadow.
 
@@ -254,7 +257,7 @@ Measured across all 22 Codex processes over a 20-second window:
 | Skin on | 0.16% | **identical** — nothing repaints while idle; picking a colour just writes 10 CSS variables on click/drag |
 | Injector | a few seconds after double-click | exits when done; 0% otherwise |
 
-The window body carries no `backdrop-filter` at all, so scrolling, window dragging and token streaming never re-blur anything — the main practical win of dropping blur in v1.9. The only blurred surface left is a pop-up menu, which exists for the few seconds it is open, covers a small area and never sits in the scrolling hot path.
+The window body carries no `backdrop-filter` at all, so scrolling, window dragging and token streaming never re-blur anything — the main practical win of dropping blur in v1.9. The only blurred surfaces left are top-layer overlays (menus, the project hover card, tooltips), which exist only while open or hovered, cover a small area and never sit in the scrolling hot path.
 
 ### 6. The exe launcher
 

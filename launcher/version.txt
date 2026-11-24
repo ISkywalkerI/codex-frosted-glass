@@ -1,7 +1,7 @@
 VSVersionInfo(
   ffi=FixedFileInfo(
-    filevers=(1, 13, 3, 0),
-    prodvers=(1, 13, 3, 0),
+    filevers=(1, 13, 4, 0),
+    prodvers=(1, 13, 4, 0),
     mask=0x3f,
     flags=0x0,
     OS=0x40004,
@@ -14,12 +14,12 @@ VSVersionInfo(
       StringTable('040904B0', [
         StringStruct('CompanyName', 'ISkywalkerI'),
         StringStruct('FileDescription', 'Codex Frosted Glass launcher'),
-        StringStruct('FileVersion', '1.13.3'),
+        StringStruct('FileVersion', '1.13.4'),
         StringStruct('InternalName', 'Codex-skinned'),
         StringStruct('LegalCopyright', 'MIT License'),
         StringStruct('OriginalFilename', 'Codex-skinned.exe'),
         StringStruct('ProductName', 'Codex Frosted Glass'),
-        StringStruct('ProductVersion', '1.13.3')
+        StringStruct('ProductVersion', '1.13.4')
       ])
     ]),
     VarFileInfo([VarStruct('Translation', [1033, 1200])])

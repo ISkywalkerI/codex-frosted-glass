@@ -184,21 +184,31 @@
   box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.045);
 }
 
-/* ---------- 5.1 弹出菜单：右键菜单 / ⋯ 菜单 / 下拉 —— 和头像菜单同一层玻璃 ----------
+/* ---------- 5.1 顶层浮层：菜单 / 悬停卡片 / tooltip —— 和头像菜单同一层玻璃 ----------
 
-   Codex 的菜单面板带 data-native-menu-surface（顶点弹出的那一层），底走
+   Codex 所有浮层都挂在带 data-anchor-positioning 的定位节点上，底一律走
    bg-surface-elevated-secondary，浓度跟着 --cf-alpha 走 —— 调到默认 93% 透明时
-   只剩 7%，等于没有底：菜单项直接压在侧栏标题上，看的是一堆文字叠文字。
-   （头像菜单之所以好看，是因为它自带 backdrop-filter: blur(8px)，底再薄也糊得开。）
+   只剩 7%，等于没有底：菜单项、项目悬停卡片里的字直接压在侧栏标题上，
+   看的是一堆文字叠文字。这一族里有三种成员：
 
-   这里补的就是这一步：同一层玻璃 = 一点底色 + 真模糊 + 一圈内描边 + 投影。
-   backdrop-filter 在顶层弹层里是有效的（和输入框不同），所以菜单可以放心用模糊，
+     [data-native-menu-surface]  右键菜单 / ⋯ 菜单 / 下拉
+     .card-*                     项目名悬停卡片（标题 + 聊天数 + 路径 + 操作）
+     .tooltip-*                  图标悬停提示
+
+   只有头像菜单自带 backdrop-filter: blur(8px)，所以它一直是好看的；
+   其余成员连模糊都没有，薄底 + 清晰背景 = 全透明。
+
+   这里给整族补上同一层玻璃：一点底色 + 真模糊 + 一圈内描边 + 投影。
+   backdrop-filter 在顶层浮层里是有效的（和输入框节点不同），所以可以放心用模糊，
    底色就能压得很薄，透出背后"糊成一片"的内容而不是清晰可读的字。
+
+   选父属性 data-anchor-positioning 而不是逐个类名：类名带哈希（surface-tkBoA3、
+   card-wbKLhh、tooltip-Mybt3y 每次构建都变），父属性是稳定的。
 
    浓度取 max(22%, --cf-alpha × 160%)：
    - 默认的高透明档（alpha 0.06）落在 22%，比头像菜单的 6% 略厚一点，压得住密集列表；
-   - 用户把透明度调低时跟着变厚，alpha 1 时封顶实心，不会出现"整窗变实、菜单还透"的割裂。 */
-:root:not(.cf-off) [data-native-menu-surface] {
+   - 用户把透明度调低时跟着变厚，alpha 1 时封顶实心，不会出现"整窗变实、浮层还透"的割裂。 */
+:root:not(.cf-off) [data-anchor-positioning] {
   background-color: color-mix(
     in srgb,
     var(--cf-menu-ink) calc(max(22%, var(--cf-alpha) * 160%)),
