@@ -5,7 +5,7 @@
    其余光晕与玻璃底色由主光/副光/底色派生。
    ============================================================ */
 
-const CF_VER = "1.13.1";
+const CF_VER = "1.13.2";
 const KEY = "cf-glass-v1";
 
 /* 3 个可调颜色的默认值 = v1.9.1 的硬编码观感 */
@@ -268,14 +268,23 @@ const tag = () => {
   const vw = window.innerWidth;
   const vh = window.innerHeight;
 
-  // 输入框：从 textarea / contenteditable 往上找有圆角的容器
+  // 输入框：从 textarea / contenteditable 往上找有圆角的容器。
+  // 不能只取第一个可编辑区：欢迎页（新聊天）里还留着一个 0×0 的隐藏 ProseMirror，
+  // document.querySelector 会先命中它，几何条件全不满足，整条打标链直接空转
+  // （[data-cf-composer] 空着 → 高光/投影不出现，只能靠底色令牌兜着）。
+  // 所以先筛掉没尺寸的，再按面积取最大的那个（主输入框）往上走。
   document.querySelectorAll("[data-cf-composer]").forEach((el) => el.removeAttribute("data-cf-composer"));
-  const input = document.querySelector("textarea, [contenteditable='true'], [role='textbox']");
+  const input = [...document.querySelectorAll("textarea, [contenteditable='true'], [role='textbox']")]
+    .map((el) => ({ el, r: el.getBoundingClientRect() }))
+    .filter((it) => it.r.width >= 120 && it.r.height >= 20)
+    .sort((a, b) => b.r.width * b.r.height - a.r.width * a.r.height)[0]?.el;
   if (input) {
     let node = input,
       hop = 0;
-    // 输入框容器（ComposerLayoutRoot）距 contenteditable 正好 7 跳，
-    // 原来的 hop < 7 从没检查到它，导致 [data-cf-composer] 规则一直空转。
+    // 圆角容器距 contenteditable 6–7 跳：老会话是 ComposerLayoutRoot（圆角 22px、自带底），
+    // 新聊天是它的子节点 ComposerLayoutBody（同样 22px，外层反而 0 圆角）。
+    // 从里往外遇到的第一个圆角容器就是它，两边都能命中。
+    // （原来的 hop < 7 从没检查到它，导致 [data-cf-composer] 规则一直空转。）
     while (node && node !== document.body && hop < 9) {
       const r = node.getBoundingClientRect();
       const cs = getComputedStyle(node);

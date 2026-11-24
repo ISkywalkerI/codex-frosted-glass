@@ -156,9 +156,15 @@
    （认不出哪行是自己的）；97% 是这个尺寸下「看不见字句、但还看得出透明」的临界点。
    这里不加 backdrop-filter：实测这台机器的 Electron 窗口里它不生效（把模糊加到 30px、
    底降到 18%，背后文字依旧笔画清晰），靠模糊救可读性行不通，只有不透明度可靠。
-   选择器用 class 前缀兜底：SPA 重渲染会换掉节点、打标可能暂时丢失，样式不能跟着丢。 */
-:root:not(.cf-off) [data-cf-composer],
-:root:not(.cf-off) [class*="ComposerLayoutRoot"] {
+
+   只认 [data-cf-composer]（payload.js 按几何条件打标出来的那个圆角容器）。
+   曾经还并列写了一条 [class*="ComposerLayoutRoot"] 兜底，结果新聊天（欢迎页）翻车：
+   那里的输入框是两层同名节点 —— 外层 ComposerLayoutRoot.gap-2 是 0 圆角的定位壳，
+   内层 ComposerLayoutBody 才是 22px 圆角、真正上底的玻璃面。兜底规则给外壳也刷了一层
+   底色和 1px 内描边，圆角外面就多出一圈直角方框（老会话只有一层圆角 Root，所以看不出来）。
+   现在底色本来就走 --color-background-composer-surface 令牌（Codex 自己在哪层上色都跟着走），
+   这里只补高光和投影，必须落在那个圆角节点上。 */
+:root:not(.cf-off) [data-cf-composer] {
   background-color: color-mix(
     in srgb,
     var(--cf-composer-ink) var(--cf-composer-mix, 97%),

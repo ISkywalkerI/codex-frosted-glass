@@ -76,7 +76,7 @@ Chromium 只在启动参数里带 `--remote-debugging-port` 时才开放调试�
 
 ## 快速开始
 
-**① 下载 Release**（不需要 git）：从 [Releases](https://github.com/ISkywalkerI/codex-frosted-glass/releases/latest) 下载 `codex-frosted-glass-v1.13.1.zip`，解压到**固定目录**。
+**① 下载 Release**（不需要 git）：从 [Releases](https://github.com/ISkywalkerI/codex-frosted-glass/releases/latest) 下载 `codex-frosted-glass-v1.13.2.zip`，解压到**固定目录**。
 
 **② clone 仓库**（想改代码或跟更新）：
 
