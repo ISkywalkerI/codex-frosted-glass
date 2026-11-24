@@ -1,6 +1,6 @@
 {
   "name": "codex-frosted-glass",
-  "version": "1.13.4",
+  "version": "1.13.5",
   "description": "Frosted-glass skin for the Codex desktop app, injected at runtime via CDP, with adjustable transparency and an in-panel HSV gradient colour picker.",
   "main": "inject.js",
   "scripts": {
