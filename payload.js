@@ -5,7 +5,7 @@
    其余光晕与玻璃底色由主光/副光/底色派生。
    ============================================================ */
 
-const CF_VER = "1.12.2";
+const CF_VER = "1.12.3";
 const KEY = "cf-glass-v1";
 
 /* 3 个可调颜色的默认值 = v1.9.1 的硬编码观感 */
@@ -266,7 +266,9 @@ const tag = () => {
   if (input) {
     let node = input,
       hop = 0;
-    while (node && node !== document.body && hop < 7) {
+    // 输入框容器（ComposerLayoutRoot）距 contenteditable 正好 7 跳，
+    // 原来的 hop < 7 从没检查到它，导致 [data-cf-composer] 规则一直空转。
+    while (node && node !== document.body && hop < 9) {
       const r = node.getBoundingClientRect();
       const cs = getComputedStyle(node);
       const radius = parseFloat(cs.borderTopLeftRadius) || 0;
@@ -726,9 +728,21 @@ if (!window.__cfPanelBound) {
 
 /* ---------- 6. 跟随 SPA 重渲染 ---------- */
 let tagTimer = null;
+let lastTagAt = 0;
 const scheduleTag = () => {
+  // 流式输出时 DOM 一直在变，防抖计时器会被无限重置，tag 永远等不到执行；
+  // 而 SPA 重渲染会换掉输入框节点，打标跟着丢。超过 3s 没打标就立刻补一次。
+  if (performance.now() - lastTagAt > 3000) {
+    clearTimeout(tagTimer);
+    lastTagAt = performance.now();
+    tag();
+    return;
+  }
   clearTimeout(tagTimer);
-  tagTimer = setTimeout(tag, 220);
+  tagTimer = setTimeout(() => {
+    lastTagAt = performance.now();
+    tag();
+  }, 220);
 };
 
 if (!window.__cfObserver) {

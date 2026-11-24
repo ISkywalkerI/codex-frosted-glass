@@ -109,7 +109,16 @@
   --app-color-background-elevated-secondary-opaque: color-mix(in srgb, #102435 calc(var(--cf-alpha) * 120%), transparent);
   --app-color-background-elevated-tertiary-opaque: color-mix(in srgb, rgb(16, 36, 53) calc(var(--cf-alpha) * 112%), transparent);
 
-  --color-background-composer-surface: color-mix(in srgb, rgb(28, 48, 64) min(100%, calc(var(--cf-alpha) * 128%)), transparent);
+  /* 输入框是唯一「边打字边读字」的表面，也是唯一不吃透明度滑块的地方。
+     实测（透明度 100%，alpha 0.06）：底只有 7% 时，背后正文原样透过输入区，
+     和正在输入的字叠在一起，分不清哪行是自己的；提到 86% 仍能读出
+     「请优先确认的问题」，96% 还有隐约的残影，99% 才彻底干净。
+     而 backdrop-filter 在这台机器的 Electron 窗口里根本不生效（模糊加到 30px、
+     底降到 18%，背后文字照样笔画清晰），所以「靠模糊救可读性」这条路走不通。
+     结论：输入框给一块实底，玻璃感改由内高光 + 一圈亮边 + 外阴影承担。
+     底色仍跟随配色：在底色上抬亮一档，像块更厚的玻璃。 */
+  --cf-composer-ink: color-mix(in srgb, rgb(var(--cf-tint)) 58%, rgb(44, 68, 90));
+  --color-background-composer-surface: var(--cf-composer-ink);
   --color-background-composer-action-bar: color-mix(in srgb, #102435 calc(var(--cf-alpha) * 110%), transparent);
   --color-background-control-opaque: color-mix(in srgb, rgb(20, 40, 57) calc(var(--cf-alpha) * 118%), transparent);
 
@@ -142,9 +151,14 @@
     inset 0 0 0 1px rgba(255, 255, 255, 0.05);
 }
 
-/* 输入框：稍微厚一点，加顶部内高光，像一块凸起的玻璃 */
-:root:not(.cf-off) [data-cf-composer] {
-  background-color: color-mix(in srgb, rgb(var(--cf-tint)) min(100%, calc(var(--cf-alpha) * 118%)), transparent) !important;
+/* 输入框：唯一一块「厚」玻璃 —— 实底 + 顶部内高光 + 一圈外阴影，浮在正文之上。
+   底只有 7% 时，背后正文会原样透过输入区，和正在输入的字叠在一起（认不出哪行是自己的）。
+   这里不加 backdrop-filter：实测这台机器的 Electron 窗口里它不生效（把模糊加到 30px、
+   底降到 18%，背后文字依旧笔画清晰），靠模糊救可读性行不通，只有实底可靠。
+   选择器用 class 前缀兜底：SPA 重渲染会换掉节点、打标可能暂时丢失，样式不能跟着丢。 */
+:root:not(.cf-off) [data-cf-composer],
+:root:not(.cf-off) [class*="ComposerLayoutRoot"] {
+  background-color: var(--cf-composer-ink) !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.09),
     inset 0 0 0 1px rgba(255, 255, 255, 0.06),

@@ -22,7 +22,7 @@ No binary patching, no broken signatures, fully reversible — all styling is in
 - **Double-click entry, two flavours** — `Codex-skinned.exe` ships with the icon embedded and no console window, so it can be pinned to Start or the taskbar; switch to `Codex-skinned.cmd` when you want the full output
 - **Adjustable transparency** — drag a slider, the whole UI updates instantly, no reload
 - **Pick your own gradient** — an in-panel HSV wheel drives main light / secondary light / base colour; the other three glows and the glass tint are derived. Five presets, one click each, plus a reset when you want the default back
-- **Layered depth** — shell, composer, and sidebar use three different glass thicknesses
+- **Layered depth** — shell, composer, and sidebar use three different glass thicknesses; the composer keeps a solid base so the transcript never shows through while you type
 - **Zero background processes** — double-click, launch + inject, exit. Nothing idles afterwards
 - **Reversible** — toggle the `◐` button (or the `cf-off` class on `<html>`) to switch back to stock
 - **Non-invasive** — no registry writes, no autostart, no services, no telemetry
@@ -76,7 +76,7 @@ Verdict: **transparency only.** One less slider, one less filter, same look, zer
 
 ## Quick start
 
-**① Download the release** (no git needed): grab `codex-frosted-glass-v1.12.2.zip` from
+**① Download the release** (no git needed): grab `codex-frosted-glass-v1.12.3.zip` from
 [Releases](https://github.com/ISkywalkerI/codex-frosted-glass/releases/latest) and extract it to a **permanent folder**.
 
 **② Clone the repo** (if you want to tweak or track updates):
@@ -176,13 +176,17 @@ So the rule is: **background tokens may be made translucent, foreground tokens m
 }
 ```
 
+**Second trap: `backdrop-filter` is inert in this window.** Adding a 26px backdrop blur to the composer changed nothing; in a controlled test (base down to 18%, blur up to 30px) the transcript behind it stayed pixel-crisp. So blur cannot rescue legibility here — only opacity can. Dropping blur in v1.9 was the right call, but without it "glassy" and "readable" are a straight trade-off, and the composer resolves it with a solid base.
+
 ### 2. Three thicknesses
 
 | Layer | Treatment |
 |---|---|
 | Shell `#root` | base colour at 0.62 alpha — one sheet of glass across the window, plus a 1px inner top highlight |
-| Composer | `alpha × 1.18` + 1px top inner highlight + drop shadow (reads as raised glass) |
+| Composer | **opaque base** (ignores the transparency slider) + 1px top inner highlight + drop shadow — a thick pane sitting on top of the transcript |
 | Sidebar | 1px right edge highlight; thinner and more transparent than the shell |
+
+The composer is the one surface where you type *and* read at once, so it opts out of transparency. At `transparency 100%` (alpha 0.06) a 7%-opaque base lets the transcript bleed straight through the input area and interleave with what you are typing. Measured on a real window: 86% still left the background heading readable, 96% still ghosted, 99% was finally clean — so it gets a solid base, and the glass read comes from the inner highlight, the bright edge and the shadow instead.
 
 ### 3. Geometric tagging instead of class names
 
@@ -197,7 +201,7 @@ Codex uses hashed class names (`ComposerLayoutBody-uBBf1A`) that change on every
 alpha = 1 - (t / 100) * 0.94      // t=0 → 1.0 (opaque), t=100 → 0.06
 ```
 
-All `color-mix` values reference it, so changing it forces a single style recalculation — which is why dragging feels instant.
+All `color-mix` values reference it, so changing it forces a single style recalculation — which is why dragging feels instant. The one exception is the composer base, which is deliberately opaque (see "Three thicknesses").
 
 ### 5. Gradient parameterisation and colour derivation
 
@@ -290,6 +294,7 @@ The log lives at `%LOCALAPPDATA%\CodexSkinned\launcher.log` (overwritten each ru
 | Double-clicking the exe does nothing, no dialog | Check `%LOCALAPPDATA%\CodexSkinned\launcher.log`; if there is no log either, security software blocked the exe |
 | "Windows protected your PC" | Normal for an unsigned exe: More info → Run anyway |
 | The send button is a blank white circle, arrow invisible | A foreground token got the translucent background treatment (see Implementation notes §1); fixed in v1.12.2 — update |
+| Typed text and the transcript behind the input box blur together | Since v1.12.3 the composer uses a solid base and no longer follows the slider — update |
 
 ## Layout
 
