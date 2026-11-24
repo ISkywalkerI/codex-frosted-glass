@@ -5,7 +5,7 @@
    其余光晕与玻璃底色由主光/副光/底色派生。
    ============================================================ */
 
-const CF_VER = "1.13.0";
+const CF_VER = "1.13.1";
 const KEY = "cf-glass-v1";
 
 /* 3 个可调颜色的默认值 = v1.9.1 的硬编码观感 */
@@ -811,12 +811,9 @@ bindOnce(cInput, () => {
     helpBtn.addEventListener("pointerleave", hide);
     helpBtn.addEventListener("focus", show);
     helpBtn.addEventListener("blur", hide);
-    // 触屏没有 hover：点一下切换
-    helpBtn.addEventListener("click", (e) => {
-      e.preventDefault();
-      if (tip.classList.contains("is-on")) hide();
-      else show();
-    });
+    // 不做 click 切换：点击会顺带触发 focus（已显示），再切换一次会让提示在指针还悬停时消失。
+    // 触屏靠 focus / 失焦即可显示与收起。
+    helpBtn.addEventListener("click", (e) => e.preventDefault());
   });
 })();
 
