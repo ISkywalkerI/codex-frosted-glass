@@ -82,7 +82,7 @@ The rule is not "never blur" but **don't blur where there is nothing to blur, an
 
 ## Quick start
 
-**① Download the release** (no git needed): grab `codex-frosted-glass-v1.14.0.zip` from
+**① Download the release** (no git needed): grab `codex-frosted-glass-v1.14.1.zip` from
 [Releases](https://github.com/ISkywalkerI/codex-frosted-glass/releases/latest) and extract it to a **permanent folder**.
 
 **② Clone the repo** (if you want to tweak or track updates):

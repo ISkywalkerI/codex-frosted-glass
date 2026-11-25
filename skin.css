@@ -933,7 +933,7 @@
    白底白箭头是同一个 bug，只是换了个底色。深色那句声明天然覆盖浅色，
    所以这里什么都不写，只留这条注释防止以后有人"顺手"再钉一遍。 */
 
-* 8.8 极端透明度下的兜底（配合 §7 末尾的 @supports 块） */
+/* 8.8 极端透明度下的兜底（配合 §7 末尾的 @supports 块） */
 @supports not (color: color-mix(in srgb, red 50%, transparent)) {
   :root.cf-light:not(.cf-off) #root,
   :root.cf-light:not(.cf-off) [data-cf-composer] {
@@ -941,7 +941,7 @@
   }
 }
 
-* ---------- 8.9 控制面板：跟着模式变浅 ----------
+/* ---------- 8.9 控制面板：跟着模式变浅 ----------
 
    这是唯一一处**不带** :not(.cf-off) 的浅色块。皮肤关掉时面板仍然浮在界面上，
    它应该继续是浅色的 —— 否则就是"原版浅色界面 + 一块黑板"。
@@ -1078,6 +1078,13 @@
 }
 :root.cf-light #cf-panel .cf-reset:active:not(:disabled) {
   background: rgba(24, 20, 45, 0.12);
+}
+/* 深色下 .cf-reset:disabled 靠 opacity 0.45 淡化就够；浅色底上同样的 0.45
+   会把 62% 的深字压到 ~28%，整颗按钮像被擦掉了。这里换成实色，仍明显弱于可用态。 */
+:root.cf-light #cf-panel .cf-reset:disabled {
+  opacity: 1;
+  color: rgba(26, 26, 36, 0.38);
+  border-color: rgba(24, 20, 45, 0.08);
 }
 
 :root.cf-light #cf-panel .cf-chip:focus-visible,

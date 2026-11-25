@@ -82,7 +82,7 @@ v1.7 / v1.8 给整窗和输入框加过 `backdrop-filter`，v1.9 又移除了 �
 
 ## 快速开始
 
-**① 下载 Release**（不需要 git）：从 [Releases](https://github.com/ISkywalkerI/codex-frosted-glass/releases/latest) 下载 `codex-frosted-glass-v1.14.0.zip`，解压到**固定目录**。
+**① 下载 Release**（不需要 git）：从 [Releases](https://github.com/ISkywalkerI/codex-frosted-glass/releases/latest) 下载 `codex-frosted-glass-v1.14.1.zip`，解压到**固定目录**。
 
 **② clone 仓库**（想改代码或跟更新）：
 
